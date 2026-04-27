@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include "spreading_codes.h"
+#include "convert.cpp"
 
 int main() {
     std::cout << "Testing LunaNet Gateway 1 Spreading Code Engine" << std::endl;
@@ -13,7 +14,7 @@ int main() {
     lunanet::initialize_engine();
     
     // Test hello function
-    std::cout << lunanet::hello_moon() << std::endl;
+    std::cout << "Test Message: " << lunanet::hello_moon() << std::endl;
     
     // Test version
     std::cout << "Engine Version: " << lunanet::get_version() << std::endl;
@@ -25,10 +26,11 @@ int main() {
     std::vector<uint8_t> gold_code = lunanet::generate_gold_code(1);
     if (!gold_code.empty()) {
         std::cout << "Generated Gold code for PRN 1, length: " << gold_code.size() << " chips" << std::endl;
-        std::cout << "First 20 chips: ";
-        for (size_t i = 0; i < 20 && i < gold_code.size(); i++) {
+        std::cout << "First 24 Chips: ";
+        for (size_t i = 0; i < 24 && i < gold_code.size(); i++) {
             std::cout << (int)gold_code[i] << " ";
         }
+        std::cout << "\nFirst 24 Chips (HEX): " << lunanet::vector_to_hex(gold_code, 24) << std::endl;
         std::cout << std::endl;
     } else {
         std::cout << "Error generating Gold code: " << lunanet::get_last_error() << std::endl;
