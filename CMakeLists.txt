@@ -50,6 +50,21 @@ target_include_directories(${LIBRARY_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/codes
 )
 
+# Create executable for testing
+add_executable(test_engine
+    codes/test_engine.cpp
+)
+
+target_link_libraries(test_engine PRIVATE ${LIBRARY_NAME})
+
+target_include_directories(test_engine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+)
+
+set_target_properties(test_engine PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
 # Compiler options for performance
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(${LIBRARY_NAME} PRIVATE
