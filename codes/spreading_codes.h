@@ -40,11 +40,17 @@ namespace lunanet {
 	// Expansion block is fixed: [0, 1, 1, 0, 1, 0, 0] (7 chips, inserted at PRN-specific index)
 	constexpr int EXPANSION_LENGTH = 7;
 
-	// PRN initialization vectors for G2 register (from CSV data)
-	extern const uint16_t PRN_INIT_G2[];
+	// Load runtime configuration and spec tables from a config file.
+	// Returns false if parsing fails or required tables are missing.
+	bool load_spreading_code_config(const std::string& config_path, std::string* error_message = nullptr);
 
-	// G2 delay values in chips (from CSV column G2_Delay_chips)
-	extern const uint16_t PRN_G2_DELAY[];
+	// Accessors for optional Annex 3 reference vectors.
+	const char* get_annex3_gold_path();
+	const char* get_annex3_weil_primary_path();
+	const char* get_annex3_weil_tertiary_path();
+
+	// Optional generator cap for AFS-Q to avoid huge allocations (0 = full length).
+	size_t get_afs_q_max_chips();
 
 	// Initialize the C++ engine
 	void initialize_engine();
@@ -70,15 +76,16 @@ namespace lunanet {
 	// Generate the complete AFS-I data channel (Gold codes)
 	std::vector<uint8_t> generate_afs_i(int prn);
 
-	// Generate the complete AFS-Q pilot channel (Weil codes with assembly)
-	std::vector<uint8_t> generate_afs_q(int prn, int variant);
+	// Generate the complete AFS-Q pilot channel using tiered XOR composition.
+	// If max_chips is 0, the full tiered code length is generated.
+	std::vector<uint8_t> generate_afs_q(int prn, size_t max_chips = 0);
 
 	// Convert a chip vector to an uppercase hexadecimal string.
 	// If num_chips is 0, the entire vector is converted.
 	std::string chips_to_hex(const std::vector<uint8_t>& chips, size_t num_chips = 0);
 
 	// Export reference-style hex files for all 210 PRNs.
-	// Produces GoldCode2046hex210prns.txt, Weil_11cp_hex210prns.txt, and Weil_1500hex210prns.txt.
+	// Produces GoldCode2046hex210prns.txt, l1cp_hex210prns.txt, and Weil1500hex210prns.txt.
 	bool export_reference_hex_files(const std::string& output_directory, std::string* error_message = nullptr);
 
 	// Diff generated hex files against a reference directory.
@@ -86,7 +93,8 @@ namespace lunanet {
 	bool diff_reference_hex_files(const std::string& reference_directory, const std::string& generated_directory, std::string* report = nullptr);
 
 	// Generate spreading codes for all 210 PRNs (Phase 1B batch generator)
-	// Returns map: PRN -> (AFS-I vector, AFS-Q vector pair) with uint8_t storage
+	// Returns map: PRN -> (AFS-I vector, AFS-Q vector pair) with uint8_t storage.
+	// AFS-Q may be capped by the loaded config's max_chips setting.
 	std::map<int, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> generate_all_spreading_codes();
 
 	// Get the last error message

@@ -15,101 +15,396 @@
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
+#include <unordered_map>
+#include <cctype>
 
 namespace lunanet {
 
-    // PRN initialization vectors for G2 register (from CSV data)
-    // G2_Initialization_HEX values converted to decimal
-    const uint16_t PRN_INIT_G2[] = {
-        // PRN 1-10
-        0x514, 0x59E, 0x49A, 0x346, 0x788, 0x341, 0x170, 0x7AB, 0x301, 0x32E,
-        // PRN 11-20
-        0x4DE, 0x290, 0x4ED, 0x506, 0x30E, 0x230, 0x270, 0x380, 0x2DC, 0x5C8,
-        // PRN 21-30
-        0x61E, 0x720, 0x548, 0x770, 0x32F, 0x600, 0x635, 0x487, 0x730, 0x4BE,
-        // PRN 31-40
-        0x55F, 0x775, 0x424, 0x603, 0x450, 0x0AB, 0x316, 0x44F, 0x477, 0x76F,
-        // PRN 41-50
-        0x1F3, 0x189, 0x6BE, 0x6EB, 0x336, 0x650, 0x590, 0x74F, 0x294, 0x03F,
-        // PRN 51-60
-        0x5AB, 0x4F2, 0x647, 0x494, 0x521, 0x53D, 0x4DF, 0x4A2, 0x2C3, 0x15F,
-        // PRN 61-70
-        0x3A2, 0x209, 0x329, 0x0A9, 0x532, 0x733, 0x697, 0x6DD, 0x2FC, 0x471,
-        // PRN 71-80
-        0x428, 0x706, 0x52F, 0x77F, 0x526, 0x7FB, 0x220, 0x13C, 0x65F, 0x7E3,
-        // PRN 81-90
-        0x254, 0x444, 0x041, 0x542, 0x6EF, 0x4F6, 0x708, 0x45F, 0x654, 0x659,
-        // PRN 91-100
-        0x486, 0x72A, 0x191, 0x68D, 0x0CD, 0x5FE, 0x604, 0x282, 0x36D, 0x231,
-        // PRN 101-110
-        0x655, 0x1FF, 0x6FB, 0x41F, 0x6AC, 0x026, 0x298, 0x612, 0x100, 0x2C7,
-        // PRN 111-120
-        0x534, 0x7BE, 0x7DA, 0x510, 0x39A, 0x786, 0x354, 0x5A4, 0x1A4, 0x529,
-        // PRN 121-130
-        0x4CE, 0x5F2, 0x280, 0x30D, 0x621, 0x572, 0x455, 0x4C5, 0x51E, 0x676,
-        // PRN 131-140
-        0x53C, 0x726, 0x410, 0x544, 0x430, 0x3AC, 0x468, 0x389, 0x7DE, 0x3CD,
-        // PRN 141-150
-        0x7FD, 0x0BB, 0x600, 0x6F9, 0x61A, 0x7EA, 0x798, 0x75A, 0x307, 0x5D1,
-        // PRN 151-160
-        0x541, 0x689, 0x71E, 0x330, 0x498, 0x377, 0x664, 0x476, 0x6BB, 0x55E,
-        // PRN 161-170
-        0x340, 0x440, 0x1DE, 0x650, 0x302, 0x32C, 0x2CD, 0x50A, 0x31A, 0x459,
-        // PRN 171-180
-        0x750, 0x5D2, 0x4F3, 0x779, 0x538, 0x719, 0x146, 0x1E4, 0x5E3, 0x554,
-        // PRN 181-190
-        0x584, 0x288, 0x226, 0x594, 0x4D4, 0x48C, 0x020, 0x44E, 0x43A, 0x6F0,
-        // PRN 191-200
-        0x7C5, 0x331, 0x7BD, 0x443, 0x46A, 0x758, 0x357, 0x22C, 0x385, 0x643,
-        // PRN 201-210
-        0x648, 0x4D3, 0x282, 0x530, 0x760, 0x6E4, 0x485, 0x679, 0x112, 0x2DE
-    };
+    namespace {
 
-    // G2 delay values in chips (from CSV column G2_Delay_chips)
-    const uint16_t PRN_G2_DELAY[] = {
-        // PRN 1-10
-        1845, 1071, 170, 2035, 1214, 1292, 1284, 1894, 1537, 735,
-        // PRN 11-20
-        561, 1789, 1453, 196, 1040, 326, 1787, 982, 1030, 1380,
-        // PRN 21-30
-        1932, 1188, 390, 714, 303, 1001, 707, 1984, 139, 182,
-        // PRN 31-40
-        1891, 1247, 1434, 2000, 1843, 865, 616, 514, 449, 1173,
-        // PRN 41-50
-        24, 1383, 1940, 1594, 1765, 752, 145, 1615, 1666, 1372,
-        // PRN 51-60
-        1634, 1068, 1181, 879, 1153, 1621, 927, 1848, 402, 413,
-        // PRN 61-70
-        1090, 657, 609, 1547, 370, 271, 1353, 635, 299, 697,
-        // PRN 71-80
-        152, 678, 1329, 15, 1974, 1884, 1868, 277, 302, 9,
-        // PRN 81-90
-        603, 1583, 848, 1234, 1568, 510, 1303, 1921, 823, 1187,
-        // PRN 91-100
-        1299, 824, 672, 2034, 1388, 13, 223, 1840, 1161, 1132,
-        // PRN 101-110
-        365, 2, 924, 1373, 959, 220, 1542, 188, 264, 453,
-        // PRN 111-120
-        68, 715, 75, 1095, 938, 1316, 394, 1156, 166, 969,
-        // PRN 121-130
-        269, 179, 957, 400, 625, 1513, 1796, 100, 1660, 1454,
-        // PRN 131-140
-        1613, 1064, 844, 518, 320, 661, 2031, 694, 1143, 1167,
-        // PRN 141-150
-        1885, 833, 1601, 903, 399, 1896, 899, 133, 556, 331,
-        // PRN 151-160
-        198, 212, 1024, 1070, 1972, 1573, 884, 1177, 1691, 533,
-        // PRN 161-170
-        480, 751, 447, 734, 973, 857, 1767, 1548, 1876, 614,
-        // PRN 171-180
-        1017, 1978, 275, 1141, 1252, 1952, 1714, 1067, 557, 522,
-        // PRN 181-190
-        1159, 545, 1580, 610, 935, 1134, 780, 691, 1038, 1418,
-        // PRN 191-200
-        295, 916, 1654, 624, 706, 1033, 1633, 790, 1451, 1300,
-        // PRN 201-210
-        459, 106, 861, 1541, 114, 1381, 1945, 1069, 242, 356
-    };
+        struct SpreadingCodeConfig {
+            std::vector<int> g2_delays;
+            std::vector<int> weil_primary_k;
+            std::vector<int> weil_primary_p;
+            std::vector<int> weil_tertiary_k;
+            std::array<std::array<uint8_t, 4>, 4> secondary_codes{};
+            int afs_q_secondary_index = 0;
+            size_t afs_q_max_chips = 0;
+            std::string annex3_gold_path;
+            std::string annex3_weil_primary_path;
+            std::string annex3_weil_tertiary_path;
+        };
+
+        SpreadingCodeConfig config;
+        bool config_loaded = false;
+
+        std::string trim(const std::string& input) {
+            size_t start = 0;
+            while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) {
+                ++start;
+            }
+            size_t end = input.size();
+            while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+                --end;
+            }
+            return input.substr(start, end - start);
+        }
+
+        std::vector<std::string> split_csv_line(const std::string& line) {
+            std::vector<std::string> fields;
+            std::string current;
+            bool in_quotes = false;
+
+            for (char ch : line) {
+                if (ch == '"') {
+                    in_quotes = !in_quotes;
+                    continue;
+                }
+
+                if (ch == ',' && !in_quotes) {
+                    fields.push_back(trim(current));
+                    current.clear();
+                } else {
+                    current.push_back(ch);
+                }
+            }
+
+            fields.push_back(trim(current));
+            return fields;
+        }
+
+        bool parse_int(const std::string& text, int* out) {
+            if (!out) return false;
+            const std::string trimmed = trim(text);
+            if (trimmed.empty()) return false;
+            try {
+                size_t idx = 0;
+                int value = std::stoi(trimmed, &idx, 10);
+                if (idx != trimmed.size()) return false;
+                *out = value;
+                return true;
+            } catch (...) {
+                return false;
+            }
+        }
+
+        bool parse_size(const std::string& text, size_t* out) {
+            if (!out) return false;
+            const std::string trimmed = trim(text);
+            if (trimmed.empty()) return false;
+            try {
+                size_t idx = 0;
+                unsigned long long value = std::stoull(trimmed, &idx, 10);
+                if (idx != trimmed.size()) return false;
+                *out = static_cast<size_t>(value);
+                return true;
+            } catch (...) {
+                return false;
+            }
+        }
+
+        int header_index(const std::vector<std::string>& headers, const std::string& key) {
+            std::string key_lower = key;
+            std::transform(key_lower.begin(), key_lower.end(), key_lower.begin(),
+                           [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            for (size_t i = 0; i < headers.size(); ++i) {
+                std::string header = headers[i];
+                std::transform(header.begin(), header.end(), header.begin(),
+                               [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                if (header == key_lower) return static_cast<int>(i);
+            }
+            return -1;
+        }
+
+        bool read_csv_file(const std::filesystem::path& path,
+                           std::vector<std::string>& headers,
+                           std::vector<std::vector<std::string>>& rows,
+                           std::string* error) {
+            std::ifstream file(path);
+            if (!file) {
+                if (error) {
+                    *error = "Failed to open CSV: " + path.string();
+                }
+                return false;
+            }
+
+            headers.clear();
+            rows.clear();
+
+            std::string line;
+            while (std::getline(file, line)) {
+                const std::string trimmed = trim(line);
+                if (trimmed.empty() || trimmed[0] == '#') {
+                    continue;
+                }
+
+                std::vector<std::string> fields = split_csv_line(line);
+                if (headers.empty()) {
+                    headers = fields;
+                    continue;
+                }
+
+                if (fields.size() < headers.size()) {
+                    fields.resize(headers.size());
+                }
+
+                rows.push_back(std::move(fields));
+            }
+
+            if (headers.empty()) {
+                if (error) {
+                    *error = "CSV missing header row: " + path.string();
+                }
+                return false;
+            }
+
+            return true;
+        }
+
+        bool load_gold_g2_delays(const std::filesystem::path& path, SpreadingCodeConfig& cfg, std::string* error) {
+            std::vector<std::string> headers;
+            std::vector<std::vector<std::string>> rows;
+            if (!read_csv_file(path, headers, rows, error)) return false;
+
+            const int prn_idx = header_index(headers, "prn");
+            int delay_idx = header_index(headers, "g2_delay");
+            if (delay_idx < 0) {
+                delay_idx = header_index(headers, "g2_delay_chips");
+            }
+
+            if (prn_idx < 0 || delay_idx < 0) {
+                if (error) {
+                    *error = "CSV missing required columns in " + path.string();
+                }
+                return false;
+            }
+
+            cfg.g2_delays.assign(MAX_PRNS, -1);
+            for (const auto& row : rows) {
+                int prn = 0;
+                int delay = 0;
+                if (!parse_int(row[prn_idx], &prn) || !parse_int(row[delay_idx], &delay)) {
+                    continue;
+                }
+
+                if (prn < 1 || prn > MAX_PRNS) {
+                    continue;
+                }
+
+                cfg.g2_delays[prn - 1] = delay;
+            }
+
+            for (int prn = 1; prn <= MAX_PRNS; ++prn) {
+                if (cfg.g2_delays[prn - 1] < 0) {
+                    if (error) {
+                        *error = "Missing G2 delay for PRN " + std::to_string(prn);
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool load_weil_primary_params(const std::filesystem::path& path, SpreadingCodeConfig& cfg, std::string* error) {
+            std::vector<std::string> headers;
+            std::vector<std::vector<std::string>> rows;
+            if (!read_csv_file(path, headers, rows, error)) return false;
+
+            const int prn_idx = header_index(headers, "prn");
+            const int k_idx = header_index(headers, "weil_index_k");
+            const int p_idx = header_index(headers, "insertion_index_p");
+            if (prn_idx < 0 || k_idx < 0 || p_idx < 0) {
+                if (error) {
+                    *error = "CSV missing required columns in " + path.string();
+                }
+                return false;
+            }
+
+            cfg.weil_primary_k.assign(MAX_PRNS, -1);
+            cfg.weil_primary_p.assign(MAX_PRNS, -1);
+
+            for (const auto& row : rows) {
+                int prn = 0;
+                int k = 0;
+                int p = 0;
+                if (!parse_int(row[prn_idx], &prn) || !parse_int(row[k_idx], &k) || !parse_int(row[p_idx], &p)) {
+                    continue;
+                }
+
+                if (prn < 1 || prn > MAX_PRNS) {
+                    continue;
+                }
+
+                cfg.weil_primary_k[prn - 1] = k;
+                cfg.weil_primary_p[prn - 1] = p;
+            }
+
+            for (int prn = 1; prn <= MAX_PRNS; ++prn) {
+                if (cfg.weil_primary_k[prn - 1] < 0 || cfg.weil_primary_p[prn - 1] < 0) {
+                    if (error) {
+                        *error = "Missing Weil primary parameters for PRN " + std::to_string(prn);
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool load_weil_tertiary_params(const std::filesystem::path& path, SpreadingCodeConfig& cfg, std::string* error) {
+            std::vector<std::string> headers;
+            std::vector<std::vector<std::string>> rows;
+            if (!read_csv_file(path, headers, rows, error)) return false;
+
+            const int prn_idx = header_index(headers, "prn");
+            const int k_idx = header_index(headers, "weil_index_k");
+            if (prn_idx < 0 || k_idx < 0) {
+                if (error) {
+                    *error = "CSV missing required columns in " + path.string();
+                }
+                return false;
+            }
+
+            cfg.weil_tertiary_k.assign(MAX_PRNS, -1);
+
+            for (const auto& row : rows) {
+                int prn = 0;
+                int k = 0;
+                if (!parse_int(row[prn_idx], &prn) || !parse_int(row[k_idx], &k)) {
+                    continue;
+                }
+
+                if (prn < 1 || prn > MAX_PRNS) {
+                    continue;
+                }
+
+                cfg.weil_tertiary_k[prn - 1] = k;
+            }
+
+            for (int prn = 1; prn <= MAX_PRNS; ++prn) {
+                if (cfg.weil_tertiary_k[prn - 1] < 0) {
+                    if (error) {
+                        *error = "Missing Weil tertiary parameters for PRN " + std::to_string(prn);
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        int secondary_index_from_id(const std::string& id) {
+            if (id.size() < 2) return -1;
+            if (id[0] != 'S' && id[0] != 's') return -1;
+            const char index_char = id[1];
+            if (index_char < '0' || index_char > '3') return -1;
+            return index_char - '0';
+        }
+
+        bool load_secondary_codes(const std::filesystem::path& path, SpreadingCodeConfig& cfg, std::string* error) {
+            std::vector<std::string> headers;
+            std::vector<std::vector<std::string>> rows;
+            if (!read_csv_file(path, headers, rows, error)) return false;
+
+            const int id_idx = header_index(headers, "id");
+            const int chip0_idx = header_index(headers, "chip0");
+            const int chip1_idx = header_index(headers, "chip1");
+            const int chip2_idx = header_index(headers, "chip2");
+            const int chip3_idx = header_index(headers, "chip3");
+            if (id_idx < 0 || chip0_idx < 0 || chip1_idx < 0 || chip2_idx < 0 || chip3_idx < 0) {
+                if (error) {
+                    *error = "CSV missing required columns in " + path.string();
+                }
+                return false;
+            }
+
+            std::array<bool, 4> filled{};
+            for (const auto& row : rows) {
+                const std::string id = trim(row[id_idx]);
+                const int index = secondary_index_from_id(id);
+                if (index < 0) continue;
+
+                int chip0 = 0;
+                int chip1 = 0;
+                int chip2 = 0;
+                int chip3 = 0;
+                if (!parse_int(row[chip0_idx], &chip0) || !parse_int(row[chip1_idx], &chip1) ||
+                    !parse_int(row[chip2_idx], &chip2) || !parse_int(row[chip3_idx], &chip3)) {
+                    continue;
+                }
+
+                cfg.secondary_codes[index] = {
+                    static_cast<uint8_t>(chip0 & 1),
+                    static_cast<uint8_t>(chip1 & 1),
+                    static_cast<uint8_t>(chip2 & 1),
+                    static_cast<uint8_t>(chip3 & 1)
+                };
+                filled[index] = true;
+            }
+
+            for (int i = 0; i < 4; ++i) {
+                if (!filled[i]) {
+                    if (error) {
+                        *error = "Missing secondary code S" + std::to_string(i) + " in " + path.string();
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool load_spec_tables(const std::filesystem::path& dir, SpreadingCodeConfig& cfg, std::string* error) {
+            if (!load_gold_g2_delays(dir / "appendix_c_gold_g2_delays.csv", cfg, error)) return false;
+            if (!load_weil_primary_params(dir / "appendix_d_weil_primary_params.csv", cfg, error)) return false;
+            if (!load_weil_tertiary_params(dir / "appendix_e_weil_tertiary_params.csv", cfg, error)) return false;
+            if (!load_secondary_codes(dir / "table_10_secondary_codes.csv", cfg, error)) return false;
+            return true;
+        }
+
+        bool parse_key_value_file(const std::filesystem::path& path,
+                                  std::unordered_map<std::string, std::string>& values,
+                                  std::string* error) {
+            std::ifstream file(path);
+            if (!file) {
+                if (error) {
+                    *error = "Failed to open config file: " + path.string();
+                }
+                return false;
+            }
+
+            std::string line;
+            while (std::getline(file, line)) {
+                std::string trimmed = trim(line);
+                if (trimmed.empty() || trimmed[0] == '#') continue;
+                const size_t eq = trimmed.find('=');
+                if (eq == std::string::npos) continue;
+                std::string key = trim(trimmed.substr(0, eq));
+                std::string value = trim(trimmed.substr(eq + 1));
+                if (!key.empty()) {
+                    values[key] = value;
+                }
+            }
+
+            return true;
+        }
+
+        std::filesystem::path resolve_path(const std::filesystem::path& base_dir, const std::string& value) {
+            if (value.empty()) return {};
+            std::filesystem::path path(value);
+            if (path.is_absolute()) return path;
+            return base_dir / path;
+        }
+
+        std::string get_value(const std::unordered_map<std::string, std::string>& values,
+                              const std::string& key,
+                              const std::string& fallback) {
+            auto it = values.find(key);
+            return (it == values.end()) ? fallback : it->second;
+        }
+
+    } // namespace
 
     // Static variables for error handling
     static char last_error[256] = "";
@@ -161,6 +456,88 @@ namespace lunanet {
         last_error[sizeof(last_error) - 1] = '\0';
     }
 
+    bool load_spreading_code_config(const std::string& config_path, std::string* error_message) {
+        std::string local_error;
+        std::string* error_target = error_message ? error_message : &local_error;
+        config_loaded = false;
+
+        try {
+            std::unordered_map<std::string, std::string> values;
+            if (!parse_key_value_file(config_path, values, error_target)) {
+                set_error(error_target->c_str());
+                return false;
+            }
+
+            SpreadingCodeConfig next_config;
+            const std::filesystem::path base_dir = std::filesystem::absolute(config_path).parent_path();
+            const std::string spec_tables_dir = get_value(values, "spec_tables_dir", "docs/spec_tables");
+            const std::filesystem::path spec_dir = resolve_path(base_dir, spec_tables_dir);
+
+            if (!load_spec_tables(spec_dir, next_config, error_target)) {
+                set_error(error_target->c_str());
+                return false;
+            }
+
+            const std::string annex_dir_value = get_value(values, "annex3_dir", "");
+            std::filesystem::path annex_base = base_dir;
+            if (!annex_dir_value.empty()) {
+                annex_base = resolve_path(base_dir, annex_dir_value);
+            }
+
+            const std::string gold_file = get_value(values, "annex3_gold", "GoldCode2046hex210prns.txt");
+            const std::string primary_file = get_value(values, "annex3_weil_primary", "l1cp_hex210prns.txt");
+            const std::string tertiary_file = get_value(values, "annex3_weil_tertiary", "Weil1500hex210prns.txt");
+
+            next_config.annex3_gold_path = resolve_path(annex_base, gold_file).string();
+            next_config.annex3_weil_primary_path = resolve_path(annex_base, primary_file).string();
+            next_config.annex3_weil_tertiary_path = resolve_path(annex_base, tertiary_file).string();
+
+            const std::string secondary_id = get_value(values, "afs_q_secondary_code_id", "S0");
+            const int secondary_index = secondary_index_from_id(secondary_id);
+            if (secondary_index < 0) {
+                *error_target = "Invalid afs_q_secondary_code_id: " + secondary_id;
+                set_error(error_target->c_str());
+                return false;
+            }
+            next_config.afs_q_secondary_index = secondary_index;
+
+            const std::string max_chips_value = get_value(values, "afs_q_max_chips", "");
+            if (!max_chips_value.empty()) {
+                size_t max_chips = 0;
+                if (!parse_size(max_chips_value, &max_chips)) {
+                    *error_target = "Invalid afs_q_max_chips value";
+                    set_error(error_target->c_str());
+                    return false;
+                }
+                next_config.afs_q_max_chips = max_chips;
+            }
+
+            config = std::move(next_config);
+            config_loaded = true;
+            return true;
+        } catch (const std::exception& ex) {
+            *error_target = ex.what();
+            set_error(error_target->c_str());
+            return false;
+        }
+    }
+
+    const char* get_annex3_gold_path() {
+        return config_loaded ? config.annex3_gold_path.c_str() : "";
+    }
+
+    const char* get_annex3_weil_primary_path() {
+        return config_loaded ? config.annex3_weil_primary_path.c_str() : "";
+    }
+
+    const char* get_annex3_weil_tertiary_path() {
+        return config_loaded ? config.annex3_weil_tertiary_path.c_str() : "";
+    }
+
+    size_t get_afs_q_max_chips() {
+        return config_loaded ? config.afs_q_max_chips : 0;
+    }
+
     static bool write_hex_file(const std::filesystem::path& path,
                                const std::vector<std::pair<int, std::string>>& rows,
                                std::string* error_message) {
@@ -188,6 +565,14 @@ namespace lunanet {
 
     bool export_reference_hex_files(const std::string& output_directory, std::string* error_message) {
         try {
+            if (!config_loaded) {
+                if (error_message) {
+                    *error_message = "Spreading code config not loaded";
+                }
+                set_error("Spreading code config not loaded");
+                return false;
+            }
+
             const std::filesystem::path out_dir(output_directory);
             std::filesystem::create_directories(out_dir);
 
@@ -205,8 +590,8 @@ namespace lunanet {
             }
 
             if (!write_hex_file(out_dir / "GoldCode2046hex210prns.txt", gold_rows, error_message)) return false;
-            if (!write_hex_file(out_dir / "Weil_11cp_hex210prns.txt", weil_primary_rows, error_message)) return false;
-            if (!write_hex_file(out_dir / "Weil_1500hex210prns.txt", weil_tertiary_rows, error_message)) return false;
+            if (!write_hex_file(out_dir / "l1cp_hex210prns.txt", weil_primary_rows, error_message)) return false;
+            if (!write_hex_file(out_dir / "Weil1500hex210prns.txt", weil_tertiary_rows, error_message)) return false;
             return true;
         } catch (const std::exception& ex) {
             if (error_message) {
@@ -258,8 +643,8 @@ namespace lunanet {
             const std::filesystem::path gen_dir(generated_directory);
 
             all_match &= diff_single_file(ref_dir / "GoldCode2046hex210prns.txt", gen_dir / "GoldCode2046hex210prns.txt", summary);
-            all_match &= diff_single_file(ref_dir / "Weil_11cp_hex210prns.txt", gen_dir / "Weil_11cp_hex210prns.txt", summary);
-            all_match &= diff_single_file(ref_dir / "Weil_1500hex210prns.txt", gen_dir / "Weil_1500hex210prns.txt", summary);
+            all_match &= diff_single_file(ref_dir / "l1cp_hex210prns.txt", gen_dir / "l1cp_hex210prns.txt", summary);
+            all_match &= diff_single_file(ref_dir / "Weil1500hex210prns.txt", gen_dir / "Weil1500hex210prns.txt", summary);
 
             if (report) {
                 *report = summary.str();
@@ -310,66 +695,6 @@ namespace lunanet {
         }
     };
 
-    // Weil parameter tables (Appendix D: primary, Appendix E: tertiary)
-    struct WeilPrimaryParams {
-        int weil_index_k;
-        int insertion_index_p;
-    };
-
-    struct WeilTertiaryParams {
-        int weil_index_k;
-    };
-
-    // Appendix D: Weil primary code parameters for PRN 1-210
-    const std::array<WeilPrimaryParams, 210> WEIL_PRIMARY_PARAMS = {{
-        {5111, 412}, {5109, 161}, {5108, 1}, {5106, 303}, {5103, 207}, {5101, 4971}, {5100, 4496}, {5098, 5}, {5095, 4557}, {5094, 485},
-        {5093, 253}, {5091, 4676}, {5090, 1}, {5081, 66}, {5080, 4485}, {5069, 282}, {5068, 193}, {5054, 5211}, {5044, 729}, {5027, 4848},
-        {5026, 982}, {5014, 5955}, {5004, 9805}, {4980, 670}, {4915, 464}, {4909, 29}, {4893, 429}, {4885, 394}, {4832, 616}, {4824, 9457},
-        {4591, 4429}, {3706, 4771}, {5092, 365}, {4986, 9705}, {4965, 9489}, {4920, 4193}, {4917, 9947}, {4858, 824}, {4847, 864}, {4790, 347},
-        {4770, 677}, {4318, 6544}, {4126, 6312}, {3961, 9804}, {3790, 278}, {4911, 9461}, {4881, 444}, {4827, 4839}, {4795, 4144}, {4789, 9875},
-        {4725, 197}, {4675, 1156}, {4539, 4674}, {4535, 10035}, {4458, 4504}, {4197, 5}, {4096, 9937}, {3484, 430}, {3481, 5}, {3393, 355},
-        {3175, 909}, {2360, 6284}, {1852, 6284}, {5065, 9429}, {5063, 77}, {5055, 932}, {5012, 5973}, {4981, 377}, {4952, 10000}, {4934, 951},
-        {4932, 6212}, {4786, 686}, {4762, 9352}, {4640, 5999}, {4601, 9912}, {4563, 9620}, {4388, 635}, {3820, 4951}, {3687, 5453}, {5052, 4658},
-        {5051, 4800}, {5047, 59}, {5039, 318}, {5015, 571}, {5005, 565}, {4984, 9947}, {4975, 4654}, {4974, 148}, {4972, 3929}, {4962, 293},
-        {4913, 178}, {4907, 10142}, {4903, 9683}, {4833, 137}, {4778, 565}, {4721, 35}, {4661, 5949}, {4660, 2}, {4655, 5982}, {4623, 825},
-        {4590, 9614}, {4548, 9790}, {4461, 5613}, {4442, 764}, {4347, 660}, {4259, 4870}, {4256, 4950}, {4166, 4881}, {4155, 1151}, {4109, 9977},
-        {4100, 5122}, {4023, 10074}, {3998, 4832}, {3979, 77}, {3903, 4698}, {3568, 1002}, {5088, 5549}, {5050, 9606}, {5020, 9228}, {4990, 604},
-        {4982, 4678}, {4966, 4854}, {4949, 4122}, {4947, 9471}, {4937, 5026}, {4935, 272}, {4906, 1027}, {4901, 317}, {4872, 691}, {4865, 509},
-        {4863, 9708}, {4818, 5033}, {4785, 9938}, {4781, 4314}, {4776, 10140}, {4775, 4790}, {4754, 9823}, {4696, 6093}, {4690, 469}, {4658, 1215},
-        {4607, 799}, {4599, 756}, {4596, 9994}, {4530, 4843}, {4524, 5271}, {4451, 9661}, {4441, 6255}, {4396, 5203}, {4340, 203}, {4335, 10070},
-        {4296, 30}, {4267, 103}, {4168, 5692}, {4149, 32}, {4097, 9826}, {4061, 76}, {3989, 59}, {3966, 6831}, {3789, 958}, {3775, 1471},
-        {3622, 10070}, {3523, 553}, {3515, 5487}, {3492, 55}, {3345, 208}, {3235, 645}, {3169, 5268}, {3157, 1873}, {3082, 427}, {3072, 367},
-        {3032, 1404}, {3030, 5652}, {4582, 5}, {4595, 368}, {4068, 451}, {4871, 9595}, {4514, 1030}, {4439, 1324}, {4122, 692}, {4948, 9819},
-        {4774, 4520}, {3923, 9911}, {3411, 278}, {4745, 642}, {4195, 6330}, {4897, 5508}, {3047, 1872}, {4185, 5445}, {4354, 10131}, {5077, 422},
-        {4042, 4918}, {2111, 787}, {4311, 9864}, {5024, 9753}, {4352, 9859}, {4678, 328}, {5034, 1}, {5085, 4733}, {3646, 164}, {4868, 135},
-        {3668, 174}, {4211, 132}, {2883, 538}, {2850, 176}, {2815, 198}, {2542, 595}, {2492, 574}, {2376, 321}, {2036, 596}, {1920, 491}
-    }};
-
-    // Appendix E: Weil tertiary code parameters for PRN 1-210
-    const std::array<WeilTertiaryParams, 210> WEIL_TERTIARY_PARAMS = {{
-        {1}, {229}, {237}, {241}, {253}, {254}, {255}, {256}, {257}, {267},
-        {276}, {283}, {301}, {319}, {327}, {328}, {333}, {334}, {335}, {339},
-        {340}, {346}, {347}, {350}, {354}, {356}, {357}, {361}, {364}, {365},
-        {366}, {368}, {373}, {378}, {381}, {382}, {383}, {384}, {386}, {387},
-        {389}, {390}, {394}, {397}, {398}, {400}, {401}, {407}, {408}, {414},
-        {415}, {416}, {426}, {431}, {432}, {433}, {436}, {437}, {438}, {439},
-        {440}, {441}, {447}, {448}, {449}, {450}, {451}, {459}, {460}, {461},
-        {463}, {467}, {468}, {469}, {471}, {474}, {475}, {477}, {480}, {481},
-        {485}, {487}, {488}, {489}, {490}, {491}, {492}, {495}, {496}, {498},
-        {500}, {502}, {507}, {509}, {510}, {513}, {515}, {517}, {520}, {521},
-        {524}, {525}, {526}, {527}, {528}, {529}, {531}, {533}, {538}, {540},
-        {542}, {543}, {544}, {549}, {551}, {552}, {553}, {554}, {555}, {556},
-        {557}, {562}, {568}, {570}, {573}, {574}, {575}, {576}, {577}, {578},
-        {579}, {580}, {582}, {586}, {591}, {592}, {594}, {595}, {596}, {597},
-        {598}, {599}, {601}, {604}, {605}, {606}, {607}, {608}, {609}, {610},
-        {612}, {616}, {617}, {618}, {619}, {621}, {622}, {627}, {628}, {631},
-        {633}, {635}, {638}, {639}, {640}, {645}, {647}, {648}, {649}, {650},
-        {651}, {654}, {656}, {658}, {660}, {661}, {662}, {665}, {668}, {669},
-        {671}, {674}, {675}, {676}, {678}, {680}, {682}, {683}, {684}, {686},
-        {687}, {688}, {689}, {690}, {691}, {697}, {698}, {702}, {705}, {707},
-        {710}, {716}, {717}, {718}, {720}, {722}, {723}, {725}, {726}, {729}
-    }};
-
     // Legendre symbol computation for Weil code generation
     static int legendre_symbol(int a, int p) {
         if (a == 0) return 0;
@@ -393,20 +718,31 @@ namespace lunanet {
     }
 
     // Generate Gold code for a given PRN (11-bit LFSR, 2046-chip output)
-    // Per LSIS-AFS Appendix C: uses 11-bit generators, PRN-specific delay already baked into PRN_INIT_G2
+    // Per LSIS-AFS Appendix C: uses 11-bit generators with PRN-specific G2 delay applied at runtime.
     std::vector<uint8_t> generate_gold_code(int prn) {
         if (prn < 1 || prn > MAX_PRNS) {
             set_error("PRN must be between 1 and 210");
+            return {};
+        }
+
+        if (!config_loaded || config.g2_delays.size() != static_cast<size_t>(MAX_PRNS)) {
+            set_error("Spreading code config not loaded");
             return {};
         }
     
         // G1 uses fixed all-1s initialization for 11 bits
         LFSR g1(G1_INIT, G1_TAP_FEEDBACK, LFSR_LENGTH);
     
-        // G2 uses PRN-specific initialization (delay is already baked into the CSV init value)
-        // Do NOT apply additional G2_DELAY shift - PRN_INIT_G2 is the pre-delayed state
-        uint16_t g2_init = PRN_INIT_G2[prn - 1];
-        LFSR g2(g2_init, G2_TAP_FEEDBACK, LFSR_LENGTH);
+        // G2 uses the all-1s initialization, pre-advanced by the PRN-specific delay.
+        const int g2_delay = config.g2_delays[prn - 1];
+        if (g2_delay < 0) {
+            set_error("Missing G2 delay for PRN");
+            return {};
+        }
+        LFSR g2(G1_INIT, G2_TAP_FEEDBACK, LFSR_LENGTH);
+        for (int i = 0; i < g2_delay; ++i) {
+            g2.next_bit();
+        }
     
         std::vector<uint8_t> gold_code;
         gold_code.reserve(GOLD_CODE_LENGTH);
@@ -442,10 +778,19 @@ namespace lunanet {
             set_error("PRN must be between 1 and 210");
             return {};
         }
+
+        if (!config_loaded || config.weil_primary_k.size() != static_cast<size_t>(MAX_PRNS)) {
+            set_error("Spreading code config not loaded");
+            return {};
+        }
     
         // Get PRN-specific Weil parameters
-        int k = WEIL_PRIMARY_PARAMS[prn - 1].weil_index_k;
-        int p = WEIL_PRIMARY_PARAMS[prn - 1].insertion_index_p;
+        int k = config.weil_primary_k[prn - 1];
+        int p = config.weil_primary_p[prn - 1];
+        if (k < 0 || k >= WEIL_PRIMARY_PRIME || p < 0 || p >= WEIL_PRIMARY_PRIME) {
+            set_error("Invalid Weil primary parameters for PRN");
+            return {};
+        }
     
         // Generate Legendre sequence L(t) for prime 10223
         std::vector<uint8_t> legendre = generate_legendre_sequence(WEIL_PRIMARY_PRIME);
@@ -459,7 +804,7 @@ namespace lunanet {
         
             // Insert expansion at index p
             if (t == p) {
-                weil.push_back(legendre[t] ^ legendre[(t + k) % WEIL_PRIMARY_PRIME]);
+                weil.push_back(bit);
                 // Insert 7-bit expansion: [0, 1, 1, 0, 1, 0, 0]
                 weil.push_back(0);
                 weil.push_back(1);
@@ -483,9 +828,18 @@ namespace lunanet {
             set_error("PRN must be between 1 and 210");
             return {};
         }
+
+        if (!config_loaded || config.weil_tertiary_k.size() != static_cast<size_t>(MAX_PRNS)) {
+            set_error("Spreading code config not loaded");
+            return {};
+        }
     
         // Get PRN-specific Weil parameter
-        int k = WEIL_TERTIARY_PARAMS[prn - 1].weil_index_k;
+        int k = config.weil_tertiary_k[prn - 1];
+        if (k < 0 || k >= WEIL_TERTIARY_PRIME) {
+            set_error("Invalid Weil tertiary parameters for PRN");
+            return {};
+        }
     
         // Generate Legendre sequence L(t) for prime 1499
         std::vector<uint8_t> legendre = generate_legendre_sequence(WEIL_TERTIARY_PRIME);
@@ -510,28 +864,39 @@ namespace lunanet {
         return generate_gold_code(prn);
     }
 
-    // Generate the complete AFS-Q pilot channel (Weil codes with XOR interleaving per spec)
-    std::vector<uint8_t> generate_afs_q(int prn, int variant) {
-        std::vector<uint8_t> primary = generate_weil_primary(prn);
-        std::vector<uint8_t> tertiary = generate_weil_tertiary(prn);
-
-        uint8_t secondary[4];
-        switch (variant) {
-            case 1: secondary[0] = 0; secondary[1] = 1; secondary[2] = 1; secondary[3] = 1; break;
-            case 2: secondary[0] = 1; secondary[1] = 0; secondary[2] = 1; secondary[3] = 1; break;
-            case 3: secondary[0] = 1; secondary[1] = 1; secondary[2] = 0; secondary[3] = 1; break;
-            case 0:
-            default: secondary[0] = 1; secondary[1] = 1; secondary[2] = 1; secondary[3] = 0; break;
+    // Generate the complete AFS-Q pilot channel (tiered XOR per spec)
+    std::vector<uint8_t> generate_afs_q(int prn, size_t max_chips) {
+        if (!config_loaded) {
+            set_error("Spreading code config not loaded");
+            return {};
         }
 
-        std::vector<uint8_t> afs_q;
-        afs_q.reserve(primary.size());
+        std::vector<uint8_t> primary = generate_weil_primary(prn);
+        std::vector<uint8_t> tertiary = generate_weil_tertiary(prn);
+        if (primary.empty() || tertiary.empty()) {
+            return {};
+        }
 
-        for (size_t i = 0; i < primary.size(); ++i) {
-            const uint8_t p_chip = primary[i];
-            const uint8_t t_chip = tertiary[i % tertiary.size()];
-            const uint8_t s_chip = secondary[(i / tertiary.size()) % 4u];
-            afs_q.push_back(static_cast<uint8_t>(p_chip ^ t_chip ^ s_chip));
+        const std::array<uint8_t, 4>& secondary = config.secondary_codes[config.afs_q_secondary_index];
+        const size_t primary_len = primary.size();
+        const size_t secondary_len = secondary.size();
+        const size_t tertiary_len = tertiary.size();
+        if (primary_len == 0 || tertiary_len == 0) {
+            set_error("AFS-Q requires non-empty primary and tertiary codes");
+            return {};
+        }
+        const size_t tiered_period = primary_len * secondary_len;
+        const size_t total_len = tiered_period * tertiary_len;
+        const size_t limit = (max_chips > 0) ? std::min(max_chips, total_len) : total_len;
+
+        std::vector<uint8_t> afs_q;
+        afs_q.reserve(limit);
+
+        for (size_t i = 0; i < limit; ++i) {
+            const uint8_t p_chip = primary[i % primary_len];
+            const uint8_t s_chip = secondary[(i / primary_len) % secondary_len];
+            const uint8_t t_chip = tertiary[i / tiered_period];
+            afs_q.push_back(static_cast<uint8_t>(p_chip ^ s_chip ^ t_chip));
         }
 
         return afs_q;
@@ -540,10 +905,11 @@ namespace lunanet {
     // Generate all spreading codes for all 210 PRNs (Phase 1B batch generator)
     std::map<int, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> generate_all_spreading_codes() {
         std::map<int, std::pair<std::vector<uint8_t>, std::vector<uint8_t>>> all_codes;
-    
+        const size_t afs_q_max = get_afs_q_max_chips();
+
         for (int prn = 1; prn <= MAX_PRNS; ++prn) {
             std::vector<uint8_t> afs_i = generate_afs_i(prn);
-            std::vector<uint8_t> afs_q = generate_afs_q(prn, 0);  // Using variant 0 (S0)
+            std::vector<uint8_t> afs_q = generate_afs_q(prn, afs_q_max);
             all_codes[prn] = std::make_pair(afs_i, afs_q);
         }
     
