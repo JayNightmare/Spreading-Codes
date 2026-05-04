@@ -1,6 +1,8 @@
 #include "weil_code_generator.h"
 
 #include <array>
+#include <mutex>
+#include <unordered_map>
 
 namespace lunanet::gateway1 {
 
@@ -26,9 +28,7 @@ int LegendreSymbol(int value, int prime) {
     return (result == (prime - 1)) ? -1 : static_cast<int>(result);
 }
 
-}  // namespace
-
-std::vector<uint8_t> GenerateLegendreSequence(int prime) {
+std::vector<uint8_t> ComputeLegendreSequence(int prime) {
     std::vector<uint8_t> sequence;
     sequence.reserve(static_cast<size_t>(prime));
 
@@ -38,6 +38,39 @@ std::vector<uint8_t> GenerateLegendreSequence(int prime) {
     }
 
     return sequence;
+}
+
+class LegendreCache {
+public:
+    const std::vector<uint8_t>& Get(int prime) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto [it, inserted] = cache_.try_emplace(prime);
+        if (inserted) {
+            it->second = ComputeLegendreSequence(prime);
+        }
+        return it->second;
+    }
+
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_.clear();
+    }
+
+private:
+    std::unordered_map<int, std::vector<uint8_t>> cache_;
+    std::mutex mutex_;
+};
+
+LegendreCache g_legendre_cache;
+
+}  // namespace
+
+std::vector<uint8_t> GenerateLegendreSequence(int prime) {
+    return g_legendre_cache.Get(prime);
+}
+
+void ClearLegendreCache() {
+    g_legendre_cache.Clear();
 }
 
 std::vector<uint8_t> GenerateWeilPrimary(int prn,
@@ -67,7 +100,7 @@ std::vector<uint8_t> GenerateWeilPrimary(int prn,
         return {};
     }
 
-    const std::vector<uint8_t> legendre = GenerateLegendreSequence(kWeilPrimaryPrime);
+    const std::vector<uint8_t>& legendre = g_legendre_cache.Get(kWeilPrimaryPrime);
     static constexpr std::array<uint8_t, kExpansionLength> kExpansion = {0, 1, 1, 0, 1, 0, 0};
 
     std::vector<uint8_t> code;
@@ -117,7 +150,7 @@ std::vector<uint8_t> GenerateWeilTertiary(int prn,
         return {};
     }
 
-    const std::vector<uint8_t> legendre = GenerateLegendreSequence(kWeilTertiaryPrime);
+    const std::vector<uint8_t>& legendre = g_legendre_cache.Get(kWeilTertiaryPrime);
     std::vector<uint8_t> code;
     code.reserve(kWeilTertiaryLength);
 
