@@ -9,6 +9,7 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 ## Features
 
 ### Gateway 1 — Spreading Code Generation
+
 - **Gold Code Generator** — 11-stage Fibonacci LFSR pair (G1/G2), 2046-chip sequences for 210 PRNs. Validated against Annex 3 reference vectors.
 - **Weil Primary Code Generator** — Legendre-sequence-based Weil construction over GF(10223) with 7-bit insertion expansion to 10230 chips.
 - **Weil Tertiary Code Generator** — Weil construction over GF(1499) producing 1500-chip tertiary codes.
@@ -16,12 +17,14 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 - **Table 11 Node Assignments** — 12 LNSP interim test node configurations with secondary code cycling (S0→S3).
 
 ### Gateway 2 — Forward Error Correction
+
 - **BCH(51,8) Encoder/Decoder** — 8-stage LFSR with generator polynomial 763₈. Includes soft-decision decoder via exhaustive 256-codeword correlation.
 - **CRC-24Q** — Polynomial `0x864CFB` (GPS CNAV compatible). Compute, append, and verify.
 - **LDPC Rate-1/2 Encoder** — Dense GF(2) submatrix encoding (A, B⁻¹, C, D) for SB2 (1200→2400) and SB3/SB4 (870→1740). Matrices loaded from Annex 1 CSV files.
 - **Block Interleaver** — 60×98 write-row/read-column interleaver for SB2+SB3+SB4 concatenation (5880 symbols).
 
 ### Cross-Language Bridge
+
 - **C API** — `extern "C"` DLL shim (`c_api.h`) exporting all generators and FEC functions for FFI access.
 - **Python Bridge** — Zero-dependency ctypes wrapper (`lunanet.py`) with auto-DLL discovery and type-safe prototypes.
 - **I/Q Signal Generator** — BPSK(1) baseband generator outputting float32 binary and CSV. Mapping: `0 → +1.0`, `1 → -1.0`.
@@ -77,6 +80,7 @@ cmake --build build --config Release
 ```
 
 Outputs:
+
 - `build/bin/Release/lunanet_spreading_codes.dll` — shared library with C API
 - `build/bin/Release/test_engine.exe` — validation harness
 
@@ -153,29 +157,29 @@ Outputs `prn001_afs_i.bin`, `prn001_afs_q.bin`, `prn001_iq_interleaved.bin`, and
 
 Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) completes in **< 0.5 ms per PRN**, well under the SC-1.7 requirement of < 1 second.
 
-| Operation | Time |
-|---|---|
-| Gold code (2046 chips) | ~0.05 ms |
-| Weil Primary (10230 chips) | ~0.1 ms |
-| AFS-Q tiered (1 epoch) | ~0.3 ms |
+| Operation                   | Time     |
+| --------------------------- | -------- |
+| Gold code (2046 chips)      | ~0.05 ms |
+| Weil Primary (10230 chips)  | ~0.1 ms  |
+| AFS-Q tiered (1 epoch)      | ~0.3 ms  |
 | LDPC SB2 encode (1200→2400) | < 100 ms |
 
 ---
 
 ## Specification Compliance
 
-| Requirement | Status | Tests |
-|---|---|---|
-| SC-1.1 Gold code generation | ✅ | 210/210 |
-| SC-1.2 Weil primary generation | ✅ | 210/210 |
-| SC-1.3 Weil tertiary generation | ✅ | 210/210 |
-| SC-1.6 Table 11 node assignments | ✅ | 60/60 |
-| SC-1.7 Performance (< 1s/PRN) | ✅ | 3/3 |
-| FEC-2.1 BCH(51,8) encoder | ✅ | 10/10 |
-| FEC-2.3 LDPC rate-1/2 encoder | ✅ | 12/12 |
-| FEC-2.5 CRC-24Q | ✅ | 4/4 |
-| FEC-2.7 Block interleaver | ✅ | 4/4 |
-| SG-4.3 BPSK(1) I/Q mapping | ✅ | verified |
+| Requirement                      | Status | Tests    |
+| -------------------------------- | ------ | -------- |
+| SC-1.1 Gold code generation      | ✅     | 210/210  |
+| SC-1.2 Weil primary generation   | ✅     | 210/210  |
+| SC-1.3 Weil tertiary generation  | ✅     | 210/210  |
+| SC-1.6 Table 11 node assignments | ✅     | 60/60    |
+| SC-1.7 Performance (< 1s/PRN)    | ✅     | 3/3      |
+| FEC-2.1 BCH(51,8) encoder        | ✅     | 10/10    |
+| FEC-2.3 LDPC rate-1/2 encoder    | ✅     | 12/12    |
+| FEC-2.5 CRC-24Q                  | ✅     | 4/4      |
+| FEC-2.7 Block interleaver        | ✅     | 4/4      |
+| SG-4.3 BPSK(1) I/Q mapping       | ✅     | verified |
 
 ---
 
