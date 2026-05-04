@@ -1,3 +1,7 @@
+# VSCode settings
+.vscode/settings.json
+
+# CMake generated files
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
