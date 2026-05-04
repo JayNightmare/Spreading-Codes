@@ -73,11 +73,18 @@ std::vector<uint8_t> GenerateWeilPrimary(int prn,
     std::vector<uint8_t> code;
     code.reserve(static_cast<size_t>(kWeilPrimaryPrime + kExpansionLength));
 
+    if (insert_index == 1) {
+        code.insert(code.end(), kExpansion.begin(), kExpansion.end());
+    }
+
     for (int t = 0; t < kWeilPrimaryPrime; ++t) {
         const uint8_t chip = static_cast<uint8_t>(legendre[t] ^ legendre[(t + k) % kWeilPrimaryPrime]);
         code.push_back(chip);
 
-        if (t == insert_index) {
+        // insert_index is 1-based, meaning the expansion sequence starts at the insert_index-th chip of the final sequence.
+        // Therefore, it is inserted after (insert_index - 1) chips of W have been generated.
+        // Since t is 0-based, we insert after t = insert_index - 2.
+        if (t == insert_index - 2) {
             code.insert(code.end(), kExpansion.begin(), kExpansion.end());
         }
     }

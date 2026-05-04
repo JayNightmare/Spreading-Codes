@@ -543,9 +543,9 @@ bool LoadSpreadingConfig(const std::string& config_path,
         annex3_dir = ResolvePath(config_dir, annex3_dir_raw);
     }
 
-    annex3.gold = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_gold", "GoldCode2046hex210prns.txt")).string();
-    annex3.weil_primary = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_weil_primary", "l1cp_hex210prns.txt")).string();
-    annex3.weil_tertiary = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_weil_tertiary", "Weil1500hex210prns.txt")).string();
+    annex3.gold = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_gold", "006_GoldCode2046hex210prns.txt")).string();
+    annex3.weil_primary = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_weil_primary", "007_l1cp_hex210prns.txt")).string();
+    annex3.weil_tertiary = ResolvePath(annex3_dir, ValueOrDefault(config_values, "annex3_weil_tertiary", "008_Weil1500hex210prns.txt")).string();
 
     if (!tables.IsReady()) {
         if (error_message != nullptr) {

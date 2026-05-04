@@ -60,7 +60,8 @@ std::vector<uint8_t> GenerateGoldCode(int prn, const SpreadingSpecTables& tables
     Lfsr g1(kG1Init, kG1FeedbackMask);
     Lfsr g2(kG1Init, kG2FeedbackMask);
 
-    for (int i = 0; i < g2_delay; ++i) {
+    const int advance_amount = (2047 - g2_delay) % 2047;
+    for (int i = 0; i < advance_amount; ++i) {
         static_cast<void>(g2.NextBit());
     }
 

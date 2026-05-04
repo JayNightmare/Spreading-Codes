@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
     std::cout << "Sample PRN 1 Weil Tertiary HEX[24]: " << lunanet::chips_to_hex(weil_tertiary, 24) << std::endl;
 
     const std::filesystem::path repo_root = std::filesystem::path(config_path).parent_path().parent_path();
-    const std::filesystem::path annex3_txt_dir = repo_root / "PRN" / "annex3" / "txt";
+    const std::filesystem::path annex3_txt_dir = repo_root / "Validation" / "annex3" / "txt";
 
     std::vector<std::string> annex3_gold_hex;
     std::vector<std::string> annex3_weil_primary_hex;

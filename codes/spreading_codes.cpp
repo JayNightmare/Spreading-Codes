@@ -250,7 +250,7 @@ std::vector<uint8_t> hex_to_vector(const std::string& hex, size_t num_chips) {
     }
 
     if (num_chips > 0 && chips.size() > num_chips) {
-        chips.resize(num_chips);
+        chips.erase(chips.begin(), chips.begin() + (chips.size() - num_chips));
     }
 
     return chips;
