@@ -1,0 +1,125 @@
+#include "weil_code_generator.h"
+
+#include <array>
+
+namespace lunanet::gateway1 {
+
+namespace {
+
+int LegendreSymbol(int value, int prime) {
+    if (value == 0) {
+        return 0;
+    }
+
+    long long result = 1;
+    long long base = value % prime;
+    long long exponent = (prime - 1) / 2;
+
+    while (exponent > 0) {
+        if ((exponent & 1LL) != 0) {
+            result = (result * base) % prime;
+        }
+        base = (base * base) % prime;
+        exponent >>= 1LL;
+    }
+
+    return (result == (prime - 1)) ? -1 : static_cast<int>(result);
+}
+
+}  // namespace
+
+std::vector<uint8_t> GenerateLegendreSequence(int prime) {
+    std::vector<uint8_t> sequence;
+    sequence.reserve(static_cast<size_t>(prime));
+
+    for (int t = 0; t < prime; ++t) {
+        const int symbol = LegendreSymbol(t, prime);
+        sequence.push_back(static_cast<uint8_t>((symbol == 1) ? 1 : 0));
+    }
+
+    return sequence;
+}
+
+std::vector<uint8_t> GenerateWeilPrimary(int prn,
+                                         const SpreadingSpecTables& tables,
+                                         std::string* error_message) {
+    if (prn < 1 || prn > kMaxPrns) {
+        if (error_message != nullptr) {
+            *error_message = "PRN must be in range [1, 210]";
+        }
+        return {};
+    }
+
+    if (tables.weil_primary_k.size() != static_cast<size_t>(kMaxPrns) ||
+        tables.weil_primary_insert_index.size() != static_cast<size_t>(kMaxPrns)) {
+        if (error_message != nullptr) {
+            *error_message = "Weil primary tables not loaded";
+        }
+        return {};
+    }
+
+    const int k = tables.weil_primary_k[prn - 1];
+    const int insert_index = tables.weil_primary_insert_index[prn - 1];
+    if (k < 0 || k >= kWeilPrimaryPrime || insert_index < 0 || insert_index >= kWeilPrimaryPrime) {
+        if (error_message != nullptr) {
+            *error_message = "Invalid Weil primary parameters for PRN " + std::to_string(prn);
+        }
+        return {};
+    }
+
+    const std::vector<uint8_t> legendre = GenerateLegendreSequence(kWeilPrimaryPrime);
+    static constexpr std::array<uint8_t, kExpansionLength> kExpansion = {0, 1, 1, 0, 1, 0, 0};
+
+    std::vector<uint8_t> code;
+    code.reserve(static_cast<size_t>(kWeilPrimaryPrime + kExpansionLength));
+
+    for (int t = 0; t < kWeilPrimaryPrime; ++t) {
+        const uint8_t chip = static_cast<uint8_t>(legendre[t] ^ legendre[(t + k) % kWeilPrimaryPrime]);
+        code.push_back(chip);
+
+        if (t == insert_index) {
+            code.insert(code.end(), kExpansion.begin(), kExpansion.end());
+        }
+    }
+
+    return code;
+}
+
+std::vector<uint8_t> GenerateWeilTertiary(int prn,
+                                          const SpreadingSpecTables& tables,
+                                          std::string* error_message) {
+    if (prn < 1 || prn > kMaxPrns) {
+        if (error_message != nullptr) {
+            *error_message = "PRN must be in range [1, 210]";
+        }
+        return {};
+    }
+
+    if (tables.weil_tertiary_k.size() != static_cast<size_t>(kMaxPrns)) {
+        if (error_message != nullptr) {
+            *error_message = "Weil tertiary table not loaded";
+        }
+        return {};
+    }
+
+    const int k = tables.weil_tertiary_k[prn - 1];
+    if (k < 0 || k >= kWeilTertiaryPrime) {
+        if (error_message != nullptr) {
+            *error_message = "Invalid Weil tertiary parameter for PRN " + std::to_string(prn);
+        }
+        return {};
+    }
+
+    const std::vector<uint8_t> legendre = GenerateLegendreSequence(kWeilTertiaryPrime);
+    std::vector<uint8_t> code;
+    code.reserve(kWeilTertiaryLength);
+
+    for (int t = 0; t < kWeilTertiaryPrime; ++t) {
+        code.push_back(static_cast<uint8_t>(legendre[t] ^ legendre[(t + k) % kWeilTertiaryPrime]));
+    }
+
+    code.push_back(0U);  // Spec-appended terminal zero.
+    return code;
+}
+
+}  // namespace lunanet::gateway1

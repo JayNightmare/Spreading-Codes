@@ -10,12 +10,14 @@ iﬁcation.
 
 **What is a Gateway?** A gateway is a development milestone that delivers a complete, independently testable
 capability. Each gateway:
+
 - Produces tangible outputs (code, test vectors, documentation)
 - Has clear success criteria for validation
 - Builds upon previous gateways
 - Can be evaluated independently
 
 **Why This Approach?**
+
 - Measurable Progress: Clear checkpoints throughout the competition
 - Quality Focus: Validate each component before integration
 - Partial Credit: Demonstrate value even if not all gateways complete
@@ -23,25 +25,25 @@ capability. Each gateway:
 
 ## Competition Key Dates
 
-| Date | Milestone |
-| --- | --- |
-| 5 April 2026 | Registration & Team Formation Closes |
+| Date                        | Milestone                                         |
+| --------------------------- | ------------------------------------------------- |
+| 5 April 2026                | Registration & Team Formation Closes              |
 | Late June / Early July 2026 | Workshop at Goonhilly Earth Station, Cornwall, UK |
-| 31 August 2026 | Competition Closes — Final Submission Deadline |
+| 31 August 2026              | Competition Closes — Final Submission Deadline    |
 
 ## Suggested Timeline
 
 There are no hard intermediate deadlines — all deliverables are due at ﬁnal submission on 31 August 2026.
 The gateways below are progressive milestones to help you plan and track progress.
 
-| Phase | Period | Gateways | Focus |
-| --- | --- | --- | --- |
-| Foundation | April 2026 | 0, 1 | Architecture, spreading code generation |
-| Encoding | May 2026 | 2, 3 | FEC implementation, message framing |
-| Signal | May–June 2026 | 4 | Baseband I/Q signal generation |
-| Workshop Prep | Late June 2026 | — | Demo encode pipeline, interop testing with other teams |
-| Decoding | July 2026 | 5, 6 | Frame sync, decoding, message parsing |
-| Integration | August 2026 | 7, 8 | End-to-end validation, documentation, ﬁnal polish |
+| Phase         | Period         | Gateways | Focus                                                  |
+| ------------- | -------------- | -------- | ------------------------------------------------------ |
+| Foundation    | April 2026     | 0, 1     | Architecture, spreading code generation                |
+| Encoding      | May 2026       | 2, 3     | FEC implementation, message framing                    |
+| Signal        | May–June 2026  | 4        | Baseband I/Q signal generation                         |
+| Workshop Prep | Late June 2026 | —        | Demo encode pipeline, interop testing with other teams |
+| Decoding      | July 2026      | 5, 6     | Frame sync, decoding, message parsing                  |
+| Integration   | August 2026    | 7, 8     | End-to-end validation, documentation, ﬁnal polish      |
 
 ## Minimum Viable Submission (Pass/Fail Gate)
 
@@ -55,13 +57,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ## Scoring Overview (100 points)
 
-| Category | Points |
-| --- | --- |
-| Correctness | 40 |
-| Performance | 20 |
-| Completeness | 20 |
-| Code Quality | 10 |
-| Innovation & Extras | 10 |
+| Category            | Points |
+| ------------------- | ------ |
+| Correctness         | 40     |
+| Performance         | 20     |
+| Completeness        | 20     |
+| Code Quality        | 10     |
+| Innovation & Extras | 10     |
 
 ## Gateway 0: Design & Architecture
 
@@ -104,13 +106,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
-| FR-1.1 | Generate Gold codes (2046 chips) for PRN 1–210 |
+| ID     | Requirement                                             |
+| ------ | ------------------------------------------------------- |
+| FR-1.1 | Generate Gold codes (2046 chips) for PRN 1–210          |
 | FR-1.2 | Generate Weil primary codes (10230 chips) for PRN 1–210 |
-| FR-1.3 | Generate secondary codes (4 chips, 4 variants) |
+| FR-1.3 | Generate secondary codes (4 chips, 4 variants)          |
 | FR-1.4 | Generate Weil tertiary codes (1500 chips) for PRN 1–210 |
-| FR-1.5 | Tiered code assembly with coherent generation |
+| FR-1.5 | Tiered code assembly with coherent generation           |
 
 ### Validation Checklist
 
@@ -143,12 +145,12 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
-| FR-2.1 | BCH(51,8) encoding for Subframe 1 |
+| ID     | Requirement                              |
+| ------ | ---------------------------------------- |
+| FR-2.1 | BCH(51,8) encoding for Subframe 1        |
 | FR-2.2 | LDPC(1/2) encoding for Subframes 2, 3, 4 |
-| FR-2.3 | CRC-24 generation for error detection |
-| FR-2.4 | Block interleaving (60×98) |
+| FR-2.3 | CRC-24 generation for error detection    |
+| FR-2.4 | Block interleaving (60×98)               |
 
 ### Validation Checklist
 
@@ -183,13 +185,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
-| FR-2.5 | Frame assembly with sync pattern |
-| — | Frame structure matches Figure 9 |
-| — | Bit allocations match Tables 14, 18, 19, 20 |
-| — | Symbol counts: SP(68) + SB1(52) + interleaved(SB2+SB3+SB4)(5880) = 6000 |
-| — | Frame timing is exactly 12 seconds |
+| ID     | Requirement                                                             |
+| ------ | ----------------------------------------------------------------------- |
+| FR-2.5 | Frame assembly with sync pattern                                        |
+| —      | Frame structure matches Figure 9                                        |
+| —      | Bit allocations match Tables 14, 18, 19, 20                             |
+| —      | Symbol counts: SP(68) + SB1(52) + interleaved(SB2+SB3+SB4)(5880) = 6000 |
+| —      | Frame timing is exactly 12 seconds                                      |
 
 ### Validation Checklist
 
@@ -220,13 +222,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
-| FR-3.1 | AFS-I baseband at 1.023 Mchip/s |
-| FR-3.2 | AFS-Q baseband at 5.115 Mchip/s |
+| ID     | Requirement                                        |
+| ------ | -------------------------------------------------- |
+| FR-3.1 | AFS-I baseband at 1.023 Mchip/s                    |
+| FR-3.2 | AFS-Q baseband at 5.115 Mchip/s                    |
 | FR-3.3 | BPSK modulation (logic 1 -> -1.0, logic 0 -> +1.0) |
-| FR-3.4 | I/Q sample generation at conﬁgurable rates |
-| FR-3.5 | Signal ﬁle export in multiple formats |
+| FR-3.4 | I/Q sample generation at conﬁgurable rates         |
+| FR-3.5 | Signal ﬁle export in multiple formats              |
 
 ### Validation Checklist
 
@@ -258,13 +260,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
+| ID     | Requirement                            |
+| ------ | -------------------------------------- |
 | FR-4.1 | Frame synchronization via sync pattern |
-| FR-4.2 | BCH(51,8) soft-decision decoding |
-| FR-4.3 | LDPC belief propagation decoding |
-| FR-4.4 | CRC validation |
-| FR-4.5 | Block deinterleaving |
+| FR-4.2 | BCH(51,8) soft-decision decoding       |
+| FR-4.3 | LDPC belief propagation decoding       |
+| FR-4.4 | CRC validation                         |
+| FR-4.5 | Block deinterleaving                   |
 
 ### Validation Checklist
 
@@ -295,13 +297,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
-| FR-5.1 | Extract FID and TOI from Subframe 1 |
+| ID     | Requirement                             |
+| ------ | --------------------------------------- |
+| FR-5.1 | Extract FID and TOI from Subframe 1     |
 | FR-5.2 | Parse Clock & Ephemeris from Subframe 2 |
-| FR-5.3 | Route variable data from Subframe 3 |
-| FR-5.4 | Parse network access from Subframe 4 |
-| FR-5.5 | Calculate Time of Transmission |
+| FR-5.3 | Route variable data from Subframe 3     |
+| FR-5.4 | Parse network access from Subframe 4    |
+| FR-5.5 | Calculate Time of Transmission          |
 
 ### Validation Checklist
 
@@ -333,12 +335,12 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Requirements
 
-| ID | Requirement |
-| --- | --- |
+| ID     | Requirement                              |
+| ------ | ---------------------------------------- |
 | FR-6.1 | Generate test vectors for all components |
-| FR-6.2 | Validate against reference codes |
-| FR-6.3 | Measure BER vs SNR performance |
-| FR-6.4 | Verify LSIS compliance |
+| FR-6.2 | Validate against reference codes         |
+| FR-6.3 | Measure BER vs SNR performance           |
+| FR-6.4 | Verify LSIS compliance                   |
 
 ### Validation Checklist
 
@@ -416,38 +418,38 @@ Your submission must include all of the following or it receives 0 points and is
 
 ## Non-Functional Requirements Summary
 
-| ID | Requirement | Target |
-| --- | --- | --- |
-| NFR-1.1 | Code generation time | < 1 second per PRN |
-| NFR-1.2 | Frame encoding time | < 100ms per frame |
-| NFR-1.3 | Frame decoding time | < 1 second per frame |
-| NFR-1.4 | Real-time capability | Process faster than signal duration |
-| NFR-2.1 | Spreading code accuracy | 100% match with Annex3 |
-| NFR-2.2 | BER at SNR > 0 dB | < 10⁻⁵ |
-| NFR-2.3 | Frame sync reliability | > 99% at SNR > 0 dB |
-| NFR-2.4 | Time reconstruction | Accurate to code phase |
-| NFR-3.1 | Unit tests | All major components |
-| NFR-3.2 | Integration tests | End-to-end ﬂow |
-| NFR-3.3 | Test coverage | > 90% |
-| NFR-3.4 | Test vectors | Reproducible |
+| ID      | Requirement             | Target                              |
+| ------- | ----------------------- | ----------------------------------- |
+| NFR-1.1 | Code generation time    | < 1 second per PRN                  |
+| NFR-1.2 | Frame encoding time     | < 100ms per frame                   |
+| NFR-1.3 | Frame decoding time     | < 1 second per frame                |
+| NFR-1.4 | Real-time capability    | Process faster than signal duration |
+| NFR-2.1 | Spreading code accuracy | 100% match with Annex3              |
+| NFR-2.2 | BER at SNR > 0 dB       | < 10⁻⁵                              |
+| NFR-2.3 | Frame sync reliability  | > 99% at SNR > 0 dB                 |
+| NFR-2.4 | Time reconstruction     | Accurate to code phase              |
+| NFR-3.1 | Unit tests              | All major components                |
+| NFR-3.2 | Integration tests       | End-to-end ﬂow                      |
+| NFR-3.3 | Test coverage           | > 90%                               |
+| NFR-3.4 | Test vectors            | Reproducible                        |
 
 ## Non-Functional Requirements: Usability
 
-| ID | Requirement | Target |
-| --- | --- | --- |
-| NFR-4.1 | Clear API documentation | All public APIs documented |
-| NFR-4.2 | Working examples | Examples for all features |
-| NFR-4.3 | Error messages | Actionable guidance |
-| NFR-4.4 | Conﬁgurable parameters | Runtime conﬁguration support |
+| ID      | Requirement             | Target                       |
+| ------- | ----------------------- | ---------------------------- |
+| NFR-4.1 | Clear API documentation | All public APIs documented   |
+| NFR-4.2 | Working examples        | Examples for all features    |
+| NFR-4.3 | Error messages          | Actionable guidance          |
+| NFR-4.4 | Conﬁgurable parameters  | Runtime conﬁguration support |
 
 ## Non-Functional Requirements: Maintainability
 
-| ID | Requirement | Target |
-| --- | --- | --- |
-| NFR-5.1 | Modular architecture | Clean component boundaries |
-| NFR-5.2 | Separation of concerns | Independent modules |
-| NFR-5.3 | Consistent coding style | Enforced via tooling |
-| NFR-5.4 | Version control | Git with meaningful history |
+| ID      | Requirement             | Target                      |
+| ------- | ----------------------- | --------------------------- |
+| NFR-5.1 | Modular architecture    | Clean component boundaries  |
+| NFR-5.2 | Separation of concerns  | Independent modules         |
+| NFR-5.3 | Consistent coding style | Enforced via tooling        |
+| NFR-5.4 | Version control         | Git with meaningful history |
 
 ## Technical Constraints
 
@@ -480,13 +482,13 @@ Your submission must include all of the following or it receives 0 points and is
 
 ## Risk Assessment
 
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| LDPC decoder complexity | High | Use existing open source libraries or simpliﬁed algorithm |
-| Test vector availability | Medium | Generate own test vectors from encoder |
-| Performance bottlenecks | Medium | Proﬁle and optimize critical paths |
-| Speciﬁcation ambiguity | Low | Reference NASA/ESA GNSS implementations |
-| Time constraints | High | Prioritize core functionality, defer optional features |
+| Risk                     | Impact | Mitigation                                                |
+| ------------------------ | ------ | --------------------------------------------------------- |
+| LDPC decoder complexity  | High   | Use existing open source libraries or simpliﬁed algorithm |
+| Test vector availability | Medium | Generate own test vectors from encoder                    |
+| Performance bottlenecks  | Medium | Proﬁle and optimize critical paths                        |
+| Speciﬁcation ambiguity   | Low    | Reference NASA/ESA GNSS implementations                   |
+| Time constraints         | High   | Prioritize core functionality, defer optional features    |
 
 ## Success Metrics
 

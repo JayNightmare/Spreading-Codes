@@ -1,15 +1,5 @@
-# ==============================================================================
-# CMake Configuration for LunaNetGateway1
-# 
-# Updates:
-# - Applies conditional generator expressions ($<CONFIG:Release>) to optimization 
-#   flags to resolve MSVC /RTC1 debug flag collisions.
-# - Removes -ffast-math to prevent floating-point inaccuracies in signal generation.
-# - Removes -march=native to ensure cross-platform reproducibility (TC-4).
-# ==============================================================================
-
-cmake_minimum_required(VERSION 3.10)
-project(LunaNetGateway1 VERSION 1.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(LunaNetGateway1 VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,51 +8,37 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 if(UNIX AND NOT APPLE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-    set(LIBRARY_OUTPUT_EXTENSION ".so")
-elseif(APPLE)
-    set(LIBRARY_OUTPUT_EXTENSION ".dylib")
-elseif(WIN32)
-    set(LIBRARY_OUTPUT_EXTENSION ".dll")
 endif()
 
 set(LIBRARY_NAME lunanet_spreading_codes)
-set(GATEWAY2_LIBRARY_NAME lunanet_message_encoders)
 
-set(SOURCE_FILES
+set(GATEWAY1_SOURCES
     codes/spreading_codes.cpp
+    codes/gateway1/spreading_config.cpp
+    codes/gateway1/gold_code_generator.cpp
+    codes/gateway1/weil_code_generator.cpp
+    codes/gateway1/tiered_code_generator.cpp
 )
 
-set(HEADER_FILES
+set(GATEWAY1_HEADERS
     codes/spreading_codes.h
+    codes/gateway1/spreading_config.h
+    codes/gateway1/gold_code_generator.h
+    codes/gateway1/weil_code_generator.h
+    codes/gateway1/tiered_code_generator.h
 )
 
-add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${LIBRARY_NAME} SHARED ${GATEWAY1_SOURCES} ${GATEWAY1_HEADERS})
+target_include_directories(${LIBRARY_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway1
+)
 set_target_properties(${LIBRARY_NAME} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-)
-
-target_include_directories(${LIBRARY_NAME} PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/codes
-)
-
-add_library(${GATEWAY2_LIBRARY_NAME} SHARED
-    codes/gateway2/message_encoders.cpp
-    codes/gateway2/message_encoders.h
-)
-set_target_properties(${GATEWAY2_LIBRARY_NAME} PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-)
-
-target_include_directories(${GATEWAY2_LIBRARY_NAME} PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
 )
 
 add_executable(test_engine
@@ -76,28 +52,18 @@ set_target_properties(test_engine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(${LIBRARY_NAME} PRIVATE
-        $<$<CONFIG:Release>:-O3 -funroll-loops>
-    )
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${LIBRARY_NAME} PRIVATE
-        $<$<CONFIG:Release>:/O2 /arch:AVX2>
-    )
-endif()
+enable_testing()
+add_test(
+    NAME gateway1_foundation
+    COMMAND test_engine ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
+)
 
-install(TARGETS ${LIBRARY_NAME} ${GATEWAY2_LIBRARY_NAME}
+install(TARGETS ${LIBRARY_NAME}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
 )
 
-install(FILES ${HEADER_FILES}
+install(FILES ${GATEWAY1_HEADERS}
     DESTINATION include/lunanet
-)
-
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/codes/spreading_codes.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/lunanet_spreading_codes_config.h"
-    COPYONLY
 )
