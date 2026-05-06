@@ -33,7 +33,7 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 
 ## Project Structure
 
-```
+```text
 Spreading-Codes/
 ├── CMakeLists.txt                  # Build system (C++17, MSVC/GCC/Clang)
 ├── config/
@@ -94,7 +94,28 @@ Run the full test suite (735 tests across 10 suites):
 ./build/bin/Release/test_engine.exe config/spreading_codes_config.ini
 ```
 
+Run modular CTest targets:
+
+```bash
+# Run both gateway validation targets
+ctest --test-dir build --output-on-failure
+
+# Run only one gateway target
+ctest --test-dir build -R gateway1_validation --output-on-failure
+ctest --test-dir build -R gateway2_validation --output-on-failure
 ```
+
+Run only one gateway validation scope:
+
+```bash
+# Gateway 1 only
+./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway1
+
+# Gateway 2 only
+./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway2
+```
+
+```text
 Smoke reference validation:            PASS (12/12)
 Annex3/Gold reference validation:      PASS (210/210)
 Annex3/Weil Primary reference validation: PASS (210/210)
@@ -106,10 +127,10 @@ Gateway2/Interleaver reference validation: PASS (4/4)
 Gateway2/LDPC reference validation:    PASS (12/12)
 Performance reference validation:      PASS (3/3)
 
-Gateway 1 modular foundation checks passed. (735/735 tests)
+Selected validation checks passed. (735/735 tests)
 ```
 
-Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}`.
+Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for full runs, or `Validation/reports/YYYY-MM-DD/HH-MM-SS_gatewayX.{md,xml}` for gateway-filtered runs.
 
 ### Report Viewer GUI
 

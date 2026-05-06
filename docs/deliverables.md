@@ -1,15 +1,10 @@
-LSIS-AFS Reference Implementation — Deliverables, Timeline & Gate-
-way Requirements
+# LSIS-AFS Reference Implementation — Deliverables, Timeline & Gate-way Requirements
 
 ## Overview
 
-This document deﬁnes the required deliverables, timeline, and gateway requirements for the LSIS-AFS ref-
-erence implementation competition. The project is structured using a gateway-based approach where
-each gateway represents a functional capability that must be demonstrated and validated against the spec-
-iﬁcation.
+This document deﬁnes the required deliverables, timeline, and gateway requirements for the LSIS-AFS ref-erence implementation competition. The project is structured using a gateway-based approach where each gateway represents a functional capability that must be demonstrated and validated against the speciﬁcation.
 
-**What is a Gateway?** A gateway is a development milestone that delivers a complete, independently testable
-capability. Each gateway:
+**What is a Gateway?** A gateway is a development milestone that delivers a complete, independently testable capability. Each gateway:
 
 - Produces tangible outputs (code, test vectors, documentation)
 - Has clear success criteria for validation
@@ -33,8 +28,7 @@ capability. Each gateway:
 
 ## Suggested Timeline
 
-There are no hard intermediate deadlines — all deliverables are due at ﬁnal submission on 31 August 2026.
-The gateways below are progressive milestones to help you plan and track progress.
+There are no hard intermediate deadlines — all deliverables are due at ﬁnal submission on 31 August 2026. The gateways below are progressive milestones to help you plan and track progress.
 
 | Phase         | Period         | Gateways | Focus                                                  |
 | ------------- | -------------- | -------- | ------------------------------------------------------ |
@@ -116,12 +110,12 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ Gold codes for all 210 PRNs match Annex3 hex references exactly
-- ☐ Weil primary codes for all 210 PRNs match Annex3 references exactly
-- ☐ Weil tertiary codes for all 210 PRNs match Annex3 references exactly
-- ☐ Secondary codes match Table 10
-- ☐ Tiered codes maintain coherency
-- ☐ Code lengths match Table 9 speciﬁcations
+- [ ] Gold codes for all 210 PRNs match Annex3 hex references exactly
+- [ ] Weil primary codes for all 210 PRNs match Annex3 references exactly
+- [ ] Weil tertiary codes for all 210 PRNs match Annex3 references exactly
+- [ ] Secondary codes match Table 10
+- [ ] Tiered codes maintain coherency
+- [ ] Code lengths match Table 9 speciﬁcations
 
 ### Success Criteria
 
@@ -154,12 +148,12 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ BCH encoder produces valid 52-symbol codewords
-- ☐ LDPC encoder produces valid codewords and handles puncturing correctly
-- ☐ CRC-24 computation matches speciﬁcation
-- ☐ Interleaver pattern validated
-- ☐ Decoders recover original data via round-trip
-- ☐ BER < 10⁻⁵ at SNR > 0 dB
+- [ ] BCH encoder produces valid 52-symbol codewords
+- [ ] LDPC encoder produces valid codewords and handles puncturing correctly
+- [ ] CRC-24 computation matches speciﬁcation
+- [ ] Interleaver pattern validated
+- [ ] Decoders recover original data via round-trip
+- [ ] BER < 10⁻⁵ at SNR > 0 dB
 
 ### Success Criteria
 
@@ -195,10 +189,10 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ Frame structure matches Figure 9
-- ☐ Symbol counts: 68 + 52 + 5880 = 6000
-- ☐ Bit allocations match speciﬁcation tables
-- ☐ Frame duration is 12 seconds
+- [ ] Frame structure matches Figure 9
+- [ ] Symbol counts: 68 + 52 + 5880 = 6000
+- [ ] Bit allocations match speciﬁcation tables
+- [ ] Frame duration is 12 seconds
 
 ### Success Criteria
 
@@ -232,11 +226,11 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ I/Q samples correctly formatted
-- ☐ Chip rates: 1.023 Mchip/s (AFS-I) and 5.115 Mchip/s (AFS-Q)
-- ☐ Symbol rate: 500 symbols/s for AFS-I (per Table 7)
-- ☐ Code synchronization meets speciﬁcation
-- ☐ Signal duration matches frame duration (12 seconds)
+- [ ] I/Q samples correctly formatted
+- [ ] Chip rates: 1.023 Mchip/s (AFS-I) and 5.115 Mchip/s (AFS-Q)
+- [ ] Symbol rate: 500 symbols/s for AFS-I (per Table 7)
+- [ ] Code synchronization meets speciﬁcation
+- [ ] Signal duration matches frame duration (12 seconds)
 
 ### Success Criteria
 
@@ -270,10 +264,10 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ Frame sync detection > 99% at SNR > 0 dB
-- ☐ Decoders recover original data correctly
-- ☐ CRC validation catches errors
-- ☐ LDPC decoder converges in < 50 iterations
+- [ ] Frame sync detection > 99% at SNR > 0 dB
+- [ ] Decoders recover original data correctly
+- [ ] CRC validation catches errors
+- [ ] LDPC decoder converges in < 50 iterations
 
 ### Success Criteria
 
@@ -307,11 +301,11 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ All subframes parse correctly
-- ☐ WN, ITOW, TOI ﬁelds extracted
-- ☐ Time of transmission calculated accurately
-- ☐ Time reconstruction accurate to code phase
-- ☐ All message types in SB3/SB4 handled
+- [ ] All subframes parse correctly
+- [ ] WN, ITOW, TOI ﬁelds extracted
+- [ ] Time of transmission calculated accurately
+- [ ] Time reconstruction accurate to code phase
+- [ ] All message types in SB3/SB4 handled
 
 ### Success Criteria
 
@@ -344,11 +338,11 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ Round-trip recovers original data with 100% accuracy
-- ☐ Performance meets all NFR-1 targets
-- ☐ All 12 interim test codes (Table 11) working
-- ☐ All speciﬁcation "shall" requirements veriﬁed
-- ☐ Interoperability with at least one other implementation demonstrated
+- [ ] Round-trip recovers original data with 100% accuracy
+- [ ] Performance meets all NFR-1 targets
+- [ ] All 12 interim test codes (Table 11) working
+- [ ] All speciﬁcation "shall" requirements veriﬁed
+- [ ] Interoperability with at least one other implementation demonstrated
 
 ### Success Criteria
 
@@ -375,11 +369,11 @@ Your submission must include all of the following or it receives 0 points and is
 
 ### Validation Checklist
 
-- ☐ Setup instructions complete — anyone can build and run from scratch
-- ☐ Usage examples work and demonstrate key functionality
-- ☐ All public APIs documented
-- ☐ Tests documented with instructions to reproduce
-- ☐ All dependencies documented or included
+- [ ] Setup instructions complete — anyone can build and run from scratch
+- [ ] Usage examples work and demonstrate key functionality
+- [ ] All public APIs documented
+- [ ] Tests documented with instructions to reproduce
+- [ ] All dependencies documented or included
 
 ### Success Criteria
 

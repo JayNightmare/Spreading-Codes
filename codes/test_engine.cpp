@@ -10,7 +10,9 @@
 #include "gateway2/interleaver.h"
 #include "gateway2/ldpc_encoder.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -21,6 +23,122 @@
 #include <vector>
 
 namespace {
+
+enum class GatewaySelection {
+    kAll,
+    kGateway1,
+    kGateway2,
+};
+
+struct RunOptions {
+    std::string config_override;
+    std::string reports_base_override;
+    GatewaySelection gateway = GatewaySelection::kAll;
+    bool show_help = false;
+    std::string parse_error;
+};
+
+std::string ToLowerAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+        [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+    return value;
+}
+
+bool ParseGatewaySelection(const std::string& value, GatewaySelection* selection) {
+    const std::string normalized = ToLowerAscii(value);
+    if (normalized == "all") {
+        *selection = GatewaySelection::kAll;
+        return true;
+    }
+    if (normalized == "gateway1" || normalized == "g1" || normalized == "1") {
+        *selection = GatewaySelection::kGateway1;
+        return true;
+    }
+    if (normalized == "gateway2" || normalized == "g2" || normalized == "2") {
+        *selection = GatewaySelection::kGateway2;
+        return true;
+    }
+    return false;
+}
+
+std::string GatewayScopeName(GatewaySelection selection) {
+    switch (selection) {
+        case GatewaySelection::kGateway1: return "gateway1";
+        case GatewaySelection::kGateway2: return "gateway2";
+        case GatewaySelection::kAll:
+        default: return "all";
+    }
+}
+
+void PrintUsage(std::ostream& out, const char* exe_name) {
+    out << "Usage: " << exe_name
+        << " [config_path] [reports_base] [--gateway <all|gateway1|gateway2>]" << std::endl;
+    out << "       " << exe_name
+        << " [--gateway <all|gateway1|gateway2>] [config_path] [reports_base]" << std::endl;
+    out << std::endl;
+    out << "Options:" << std::endl;
+    out << "  --gateway, -g  Validation scope to run (default: all)." << std::endl;
+    out << "  --help, -h     Show this help message." << std::endl;
+}
+
+RunOptions ParseRunOptions(int argc, char** argv) {
+    RunOptions options;
+    std::vector<std::string> positional;
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+
+        if (arg == "--help" || arg == "-h") {
+            options.show_help = true;
+            return options;
+        }
+
+        if (arg == "--gateway" || arg == "-g") {
+            if (i + 1 >= argc) {
+                options.parse_error = "Missing value for --gateway";
+                return options;
+            }
+            const std::string value = argv[++i];
+            if (!ParseGatewaySelection(value, &options.gateway)) {
+                options.parse_error = "Invalid --gateway value: '" + value + "'";
+                return options;
+            }
+            continue;
+        }
+
+        if (arg.rfind("--gateway=", 0) == 0) {
+            const std::string value = arg.substr(std::string("--gateway=").size());
+            if (!ParseGatewaySelection(value, &options.gateway)) {
+                options.parse_error = "Invalid --gateway value: '" + value + "'";
+                return options;
+            }
+            continue;
+        }
+
+        if (!arg.empty() && arg[0] == '-') {
+            options.parse_error = "Unknown option: " + arg;
+            return options;
+        }
+
+        positional.push_back(arg);
+    }
+
+    if (positional.size() > 2) {
+        options.parse_error = "Too many positional arguments";
+        return options;
+    }
+
+    if (!positional.empty()) {
+        options.config_override = positional[0];
+    }
+    if (positional.size() == 2) {
+        options.reports_base_override = positional[1];
+    }
+
+    return options;
+}
 
 std::string FindConfigPath(const char* override_path) {
     if (override_path != nullptr && std::string(override_path).size() > 0) {
@@ -512,9 +630,22 @@ void RunLdpcTests(
 }  // namespace
 
 int main(int argc, char** argv) {
+    const RunOptions options = ParseRunOptions(argc, argv);
+    if (!options.parse_error.empty()) {
+        std::cerr << "FAIL: " << options.parse_error << std::endl;
+        PrintUsage(std::cerr, argv[0]);
+        return 1;
+    }
+    if (options.show_help) {
+        PrintUsage(std::cout, argv[0]);
+        return 0;
+    }
+
     lunanet::initialize_engine();
 
-    const std::string config_path = FindConfigPath((argc > 1) ? argv[1] : nullptr);
+    const char* config_override =
+        options.config_override.empty() ? nullptr : options.config_override.c_str();
+    const std::string config_path = FindConfigPath(config_override);
     std::string config_error;
     if (!lunanet::load_spreading_code_config(config_path, &config_error)) {
         std::cerr << "FAIL: Could not load spreading code config: " << config_error << std::endl;
@@ -522,31 +653,45 @@ int main(int argc, char** argv) {
     }
 
     lunanet::testing::TestReporter reporter;
+    const bool run_gateway1 =
+        options.gateway == GatewaySelection::kAll ||
+        options.gateway == GatewaySelection::kGateway1;
+    const bool run_gateway2 =
+        options.gateway == GatewaySelection::kAll ||
+        options.gateway == GatewaySelection::kGateway2;
 
-    RunSmokeTests(reporter);
-
-    std::cout << "Sample PRN 1 Gold HEX[24]: "
-              << lunanet::chips_to_hex(lunanet::generate_gold_code(1), 24) << std::endl;
-    std::cout << "Sample PRN 1 Weil Primary HEX[24]: "
-              << lunanet::chips_to_hex(lunanet::generate_weil_primary(1), 24) << std::endl;
-    std::cout << "Sample PRN 1 Weil Tertiary HEX[24]: "
-              << lunanet::chips_to_hex(lunanet::generate_weil_tertiary(1), 24) << std::endl;
+    std::cout << "Validation scope: " << GatewayScopeName(options.gateway) << std::endl;
 
     const std::filesystem::path repo_root =
         std::filesystem::path(config_path).parent_path().parent_path();
     const std::filesystem::path annex3_txt_dir = repo_root / "Validation" / "annex3" / "txt";
 
-    RunAnnex3Validation(annex3_txt_dir, reporter);
-    RunTable11Validation(config_path, reporter);
-    RunGateway2Tests(reporter);
-    RunLdpcTests(repo_root, reporter);
-    RunPerformanceBenchmarks(reporter);
+    if (run_gateway1) {
+        RunSmokeTests(reporter);
+
+        std::cout << "Sample PRN 1 Gold HEX[24]: "
+                  << lunanet::chips_to_hex(lunanet::generate_gold_code(1), 24) << std::endl;
+        std::cout << "Sample PRN 1 Weil Primary HEX[24]: "
+                  << lunanet::chips_to_hex(lunanet::generate_weil_primary(1), 24) << std::endl;
+        std::cout << "Sample PRN 1 Weil Tertiary HEX[24]: "
+                  << lunanet::chips_to_hex(lunanet::generate_weil_tertiary(1), 24) << std::endl;
+
+        RunAnnex3Validation(annex3_txt_dir, reporter);
+        RunTable11Validation(config_path, reporter);
+        RunPerformanceBenchmarks(reporter);
+    }
+
+    if (run_gateway2) {
+        RunGateway2Tests(reporter);
+        RunLdpcTests(repo_root, reporter);
+    }
 
     reporter.PrintSummary(std::cout);
 
     const std::filesystem::path reports_base =
-        (argc > 2) ? std::filesystem::path(argv[2])
-                   : (repo_root / "Validation" / "reports");
+        options.reports_base_override.empty()
+            ? (repo_root / "Validation" / "reports")
+            : std::filesystem::path(options.reports_base_override);
 
     const auto now = std::chrono::system_clock::now();
     const std::time_t now_t = std::chrono::system_clock::to_time_t(now);
@@ -563,12 +708,15 @@ int main(int argc, char** argv) {
     time_ss << std::put_time(&tm_buf, "%H-%M-%S");
 
     const std::filesystem::path report_dir = reports_base / date_ss.str();
-    const std::string time_prefix = time_ss.str();
+    std::string report_stem = time_ss.str();
+    if (options.gateway != GatewaySelection::kAll) {
+        report_stem += "_" + GatewayScopeName(options.gateway);
+    }
 
-    if (!reporter.WriteMarkdownReport(report_dir / (time_prefix + ".md"))) {
+    if (!reporter.WriteMarkdownReport(report_dir / (report_stem + ".md"))) {
         std::cerr << "Warning: Failed to write markdown report." << std::endl;
     }
-    if (!reporter.WriteJUnitXml(report_dir / (time_prefix + ".xml"))) {
+    if (!reporter.WriteJUnitXml(report_dir / (report_stem + ".xml"))) {
         std::cerr << "Warning: Failed to write JUnit XML report." << std::endl;
     }
 

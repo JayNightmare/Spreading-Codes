@@ -92,9 +92,17 @@ set_target_properties(test_engine PROPERTIES
 
 enable_testing()
 add_test(
-    NAME gateway1_foundation
+    NAME gateway1_validation
     COMMAND test_engine
         ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
+        --gateway gateway1
+)
+
+add_test(
+    NAME gateway2_validation
+    COMMAND test_engine
+        ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
+        --gateway gateway2
 )
 
 install(TARGETS ${LIBRARY_NAME}

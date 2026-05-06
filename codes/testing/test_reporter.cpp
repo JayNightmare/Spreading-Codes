@@ -95,7 +95,7 @@ void TestReporter::PrintSummary(std::ostream& out) const {
 
     out << std::endl;
     if (AllPassed()) {
-        out << "Gateway 1 modular foundation checks passed. ("
+        out << "Selected validation checks passed. ("
             << PassCount() << "/" << TotalCount() << " tests)" << std::endl;
     } else {
         out << "FAILURES DETECTED: " << FailCount() << " of "
@@ -130,7 +130,7 @@ bool TestReporter::WriteMarkdownReport(const std::filesystem::path& path) const 
         return false;
     }
 
-    out << "# Gateway 1 — Test Results\n\n";
+    out << "# LunaNet Validation — Test Results\n\n";
     out << "**Overall**: " << (AllPassed() ? "✅ PASS" : "❌ FAIL") << "\n\n";
 
     out << "## Summary\n\n";
@@ -192,7 +192,7 @@ bool TestReporter::WriteJUnitXml(const std::filesystem::path& path) const {
     }
 
     out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-    out << "<testsuites name=\"Gateway1\" tests=\"" << TotalCount()
+    out << "<testsuites name=\"LunaNetValidation\" tests=\"" << TotalCount()
         << "\" failures=\"" << FailCount()
         << "\" skipped=\"" << SkipCount()
         << "\" time=\"" << std::fixed << std::setprecision(3) << grand_total_s
