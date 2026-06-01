@@ -893,7 +893,86 @@ void RunGateway3Tests(
                 kFrame, "Hex export = 1500 chars (750 packed bytes)",
                 hex.size() == 1500,
                 "Got " + std::to_string(hex.size()) + " chars", reporter);
+
+            // Frame timing: 6000 symbols @ 500 symbols/sec = 12 seconds
+            const double frame_duration_sec = static_cast<double>(frame.size()) / 500.0;
+            lunanet::testing::ValidateCondition(
+                kFrame, "Frame duration = 12 seconds",
+                std::abs(frame_duration_sec - 12.0) < 0.01,
+                std::to_string(frame_duration_sec) + " sec", reporter);
         }
+    }
+
+    // ── Bit Allocation Validation (per specification tables) ───────────────
+    {
+        // SB2: Table 14 specifies layout as WN(13) + ITOW(9) + TOI(7) + payload
+        lunanet::gateway3::Subframe2Data sb2_data;
+        sb2_data.wn = 0x1FFF;      // Max 13-bit value
+        sb2_data.itow = 0x1FF;     // Max 9-bit value
+        sb2_data.toi = 0x7F;       // Max 7-bit value
+        auto sb2_packed = lunanet::gateway3::PackSubframe2(sb2_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB2, "Bit allocation = 1176 bits (13+9+7+1147)",
+            static_cast<int>(sb2_packed.size()) == lunanet::gateway3::kSb2DataBits,
+            "Got " + std::to_string(sb2_packed.size()) + " bits", reporter);
+
+        // Verify first 29 bits match field sizes: WN(13) + ITOW(9) + TOI(7)
+        bool wn_ok = true;
+        for (int i = 0; i < 13; ++i) {
+            if (sb2_packed[i] != 1u) { wn_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "WN field (bits 0-12) encodes correctly",
+            wn_ok, "WN bits not all set for max value", reporter);
+
+        bool itow_ok = true;
+        for (int i = 13; i < 22; ++i) {
+            if (sb2_packed[i] != 1u) { itow_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "ITOW field (bits 13-21) encodes correctly",
+            itow_ok, "ITOW bits not all set for max value", reporter);
+
+        bool toi_ok = true;
+        for (int i = 22; i < 29; ++i) {
+            if (sb2_packed[i] != 1u) { toi_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "TOI field (bits 22-28) encodes correctly",
+            toi_ok, "TOI bits not all set for max value", reporter);
+    }
+
+    // SB3/SB4: Tables 18-19 specify type field + payload
+    {
+        // Type field: 4 or 6 bits per frame_config.h (kSb34TypeFieldBits)
+        lunanet::gateway3::Subframe3Data sb3_data;
+        sb3_data.type = 0xF;  // All bits set for type field
+        auto sb3_packed = lunanet::gateway3::PackSubframe3(sb3_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB3, "Bit allocation = 846 bits (type + payload)",
+            static_cast<int>(sb3_packed.size()) == lunanet::gateway3::kSb3DataBits,
+            "Got " + std::to_string(sb3_packed.size()) + " bits", reporter);
+
+        // Type field should occupy first kSb34TypeFieldBits
+        bool type_ok = true;
+        for (int i = 0; i < lunanet::gateway3::kSb34TypeFieldBits; ++i) {
+            if (sb3_packed[i] != 1u) { type_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB3, "Type field (bits 0-3 or 0-5) encodes correctly",
+            type_ok, "Type field bits not set for max value", reporter);
+
+        // SB4 identical structure to SB3
+        lunanet::gateway3::Subframe4Data sb4_data;
+        sb4_data.type = 0xF;
+        auto sb4_packed = lunanet::gateway3::PackSubframe4(sb4_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB4, "Bit allocation = 846 bits (type + payload)",
+            static_cast<int>(sb4_packed.size()) == lunanet::gateway3::kSb4DataBits,
+            "Got " + std::to_string(sb4_packed.size()) + " bits", reporter);
     }
 }
 
