@@ -1,7 +1,15 @@
-# Gateway 3: Validation & Build Instructions
+# Gateway 3: Navigation Message Framing Validation & Build Instructions
 
 ## Overview
-Gateway 3 implements **LunaNet Frame Assembly & Encoding** — constructing complete 12-second navigation frames by assembling and encoding four subframes (SB1-4) with error correction.
+
+Gateway 3 implements the **navigation message framing layer** for LunaNet, responsible for assembling complete 12-second navigation frames according to LSIS Section 2.4. The implementation constructs frames by concatenating four subframes (SB1 through SB4) with appropriate error correction coding:
+
+- **Subframe 1 (SB1):** Frame identification and timing metadata encoded via BCH(51,8) code
+- **Subframe 2 (SB2):** Clock and ephemeris data protected by CRC-24 and rate-1/2 LDPC code
+- **Subframe 3 (SB3):** Variable broadcast messages (orbit almanac, coordinate transformations) with CRC-24 and LDPC protection
+- **Subframe 4 (SB4):** Network access information and parameters, encoded identically to SB3
+
+The gateway validates the complete encoding pipeline, symbol counts, bit allocations per specification tables, and frame timing requirements. Validation also confirms proper handling of interleaving, error detection codes, and forward error correction matrix operations.
 
 ## Build Requirements
 
