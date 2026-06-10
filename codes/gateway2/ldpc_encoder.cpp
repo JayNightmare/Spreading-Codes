@@ -1,6 +1,8 @@
 #include "ldpc_encoder.h"
 
 #include <algorithm>
+#include <cassert>
+#include <cctype>
 #include <fstream>
 #include <sstream>
 
@@ -19,9 +21,16 @@ std::string Trim(const std::string& s) {
 /**
  * GF(2) matrix-vector multiply: result = M · v (mod 2).
  * M is (rows x cols), v is (cols x 1).
+ *
+ * Precondition: v.size() == m.cols and m.data.size() == m.rows * m.cols.
+ * Callers must validate these dimensions before invoking (see LdpcEncode).
  */
 std::vector<uint8_t> GF2MatVecMul(const BinaryMatrix& m,
                                    const std::vector<uint8_t>& v) {
+    assert(static_cast<int>(v.size()) == m.cols &&
+           "GF2MatVecMul: vector length must equal matrix column count");
+    assert(m.data.size() == static_cast<size_t>(m.rows) * m.cols &&
+           "GF2MatVecMul: matrix data size must equal rows * cols");
     std::vector<uint8_t> result(m.rows, 0);
     for (int r = 0; r < m.rows; ++r) {
         uint8_t acc = 0;
@@ -36,9 +45,14 @@ std::vector<uint8_t> GF2MatVecMul(const BinaryMatrix& m,
 
 /**
  * GF(2) vector XOR: result = a ^ b (element-wise mod 2).
+ *
+ * Precondition: a.size() == b.size(). Callers must validate equal lengths
+ * before invoking (see LdpcEncode).
  */
 std::vector<uint8_t> GF2VecXor(const std::vector<uint8_t>& a,
                                 const std::vector<uint8_t>& b) {
+    assert(a.size() == b.size() &&
+           "GF2VecXor: operand vectors must have equal length");
     std::vector<uint8_t> result(a.size());
     for (size_t i = 0; i < a.size(); ++i) {
         result[i] = a[i] ^ b[i];
@@ -62,51 +76,78 @@ bool LoadBinaryMatrixCsv(const std::string& path,
         return false;
     }
 
-    std::vector<std::vector<uint8_t>> rows_data;
+    // Sanity bound on total element count, guarding against runaway allocation
+    // from a corrupt or malformed CSV. Far larger than any real LDPC submatrix.
+    constexpr size_t kMaxMatrixElements = 64u * 1024u * 1024u;  // 64M cells.
+
+    std::vector<uint8_t> data;  // Flat row-major buffer, filled in a single pass.
     std::string line;
+    int rows = 0;
     int expected_cols = -1;
+    size_t line_number = 0;
 
     while (std::getline(file, line)) {
+        ++line_number;
         const std::string trimmed = Trim(line);
-        if (trimmed.empty()) continue;
+        if (trimmed.empty()) continue;  // Tolerate blank separator lines.
 
-        std::vector<uint8_t> row;
         std::istringstream ss(trimmed);
         std::string token;
+        int row_cols = 0;
 
         while (std::getline(ss, token, ',')) {
             const std::string t = Trim(token);
-            if (t.empty()) continue;
-            row.push_back(static_cast<uint8_t>(t[0] - '0'));
+            if (t.size() != 1 || (t[0] != '0' && t[0] != '1')) {
+                if (error_message) {
+                    *error_message = "Invalid cell \"" + t + "\" on line " +
+                        std::to_string(line_number) + " in " + path +
+                        " (expected a single binary digit, 0 or 1)";
+                }
+                return false;
+            }
+
+            if (data.size() >= kMaxMatrixElements) {
+                if (error_message) {
+                    *error_message = "Matrix in " + path + " exceeds the maximum "
+                        "supported size of " + std::to_string(kMaxMatrixElements) +
+                        " cells";
+                }
+                return false;
+            }
+            data.push_back(static_cast<uint8_t>(t[0] - '0'));
+            ++row_cols;
+        }
+
+        if (row_cols == 0) {
+            if (error_message) {
+                *error_message = "Malformed row with no valid cells on line " +
+                    std::to_string(line_number) + " in " + path;
+            }
+            return false;
         }
 
         if (expected_cols < 0) {
-            expected_cols = static_cast<int>(row.size());
-        } else if (static_cast<int>(row.size()) != expected_cols) {
+            expected_cols = row_cols;
+        } else if (row_cols != expected_cols) {
             if (error_message) {
-                *error_message = "Row " + std::to_string(rows_data.size()) +
-                    " has " + std::to_string(row.size()) + " cols, expected " +
+                *error_message = "Row " + std::to_string(rows) +
+                    " has " + std::to_string(row_cols) + " cols, expected " +
                     std::to_string(expected_cols) + " in " + path;
             }
             return false;
         }
 
-        rows_data.push_back(std::move(row));
+        ++rows;
     }
 
-    if (rows_data.empty()) {
+    if (rows == 0) {
         if (error_message) *error_message = "Empty matrix file: " + path;
         return false;
     }
 
-    out->rows = static_cast<int>(rows_data.size());
+    out->rows = rows;
     out->cols = expected_cols;
-    out->data.clear();
-    out->data.reserve(static_cast<size_t>(out->rows) * out->cols);
-
-    for (const auto& row : rows_data) {
-        out->data.insert(out->data.end(), row.begin(), row.end());
-    }
+    out->data = std::move(data);
 
     return true;
 }
@@ -134,6 +175,27 @@ std::vector<uint8_t> LdpcEncode(const std::vector<uint8_t>& data_bits,
                                 const LdpcMatrices& matrices,
                                 const LdpcParams& params,
                                 std::string* error_message) {
+    // Validate parameter self-consistency before allocating anything. This guards
+    // against negative or mismatched fields that would otherwise drive oversized
+    // allocations (e.g. excessive filler) or out-of-bounds indexing downstream.
+    if (params.data_bits < 0 || params.filler_bits < 0 || params.info_bits < 0 ||
+        params.puncture_z2 < 0 || params.output_symbols < 0) {
+        if (error_message) *error_message = "LDPC params contain negative fields";
+        return {};
+    }
+    if (params.data_bits + params.filler_bits != params.info_bits) {
+        if (error_message) {
+            *error_message = "LDPC params inconsistent: data_bits + filler_bits != info_bits";
+        }
+        return {};
+    }
+    if (params.puncture_z2 > params.data_bits) {
+        if (error_message) {
+            *error_message = "LDPC params inconsistent: puncture_z2 exceeds systematic length";
+        }
+        return {};
+    }
+
     // Validate input length
     if (static_cast<int>(data_bits.size()) != params.data_bits) {
         if (error_message) {
@@ -156,11 +218,13 @@ std::vector<uint8_t> LdpcEncode(const std::vector<uint8_t>& data_bits,
         return {};
     }
 
-    // Validate matrix dimensions
+    // Validate matrix dimensions. The c.rows == d.rows constraint guarantees that
+    // the GF2VecXor(cs, dp1) below operates on equal-length operands.
     if (matrices.a.cols != params.info_bits ||
         matrices.b_inv.rows != matrices.a.rows ||
         matrices.b_inv.cols != matrices.b_inv.rows ||
         matrices.c.cols != params.info_bits ||
+        matrices.c.rows != matrices.d.rows ||
         matrices.d.cols != matrices.b_inv.rows) {
         if (error_message) {
             *error_message = "Matrix dimension mismatch for given params";

@@ -5,6 +5,13 @@ namespace lunanet::gateway1 {
 namespace {
 
 constexpr int kLfsrLength = 11;
+static_assert(kLfsrLength > 0 && kLfsrLength < 16,
+              "kLfsrLength must fit within the 16-bit LFSR state register");
+
+// Period of the maximal-length LFSR (2^n - 1). The Gold code (kGoldCodeLength)
+// is this period shortened by one chip.
+constexpr int kGoldCodePeriod = (1 << kLfsrLength) - 1;
+
 constexpr uint16_t kG1Init = 0x7FF;
 constexpr uint16_t kG1FeedbackMask = 0x402;
 constexpr uint16_t kG2FeedbackMask = 0x492;
@@ -57,10 +64,19 @@ std::vector<uint8_t> GenerateGoldCode(int prn, const SpreadingSpecTables& tables
         return {};
     }
 
+    if (g2_delay >= kGoldCodePeriod) {
+        if (error_message != nullptr) {
+            *error_message = "G2 delay " + std::to_string(g2_delay) +
+                " out of range [0, " + std::to_string(kGoldCodePeriod - 1) +
+                "] for PRN " + std::to_string(prn);
+        }
+        return {};
+    }
+
     Lfsr g1(kG1Init, kG1FeedbackMask);
     Lfsr g2(kG1Init, kG2FeedbackMask);
 
-    const int advance_amount = (2047 - g2_delay) % 2047;
+    const int advance_amount = (kGoldCodePeriod - g2_delay) % kGoldCodePeriod;
     for (int i = 0; i < advance_amount; ++i) {
         static_cast<void>(g2.NextBit());
     }

@@ -10,6 +10,7 @@
 #include "gateway2/interleaver.h"
 #include "gateway2/ldpc_encoder.h"
 #include "gateway3/frame_assembler.h"
+#include "gateway3/frame_config.h"
 #include "gateway3/frame_exporter.h"
 #include "gateway3/subframe1_builder.h"
 #include "gateway3/subframe2_builder.h"

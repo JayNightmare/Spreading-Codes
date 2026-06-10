@@ -1,12 +1,28 @@
 #include "weil_code_generator.h"
 
 #include <array>
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 
 namespace lunanet::gateway1 {
 
 namespace {
+
+bool IsPrime(int n) {
+    if (n < 2) {
+        return false;
+    }
+    if (n % 2 == 0) {
+        return n == 2;
+    }
+    for (int divisor = 3; divisor <= n / divisor; divisor += 2) {
+        if (n % divisor == 0) {
+            return false;
+        }
+    }
+    return true;
+}
 
 int LegendreSymbol(int value, int prime) {
     if (value == 0) {
@@ -40,15 +56,22 @@ std::vector<uint8_t> ComputeLegendreSequence(int prime) {
     return sequence;
 }
 
+// Thread-safe cache of immutable Legendre sequences.
+//
+// Get() returns a shared_ptr to an immutable sequence rather than a reference
+// into the map. This guarantees the returned data outlives any concurrent
+// Clear() call: erasing the map entry only drops the cache's ownership, while
+// the caller's shared_ptr keeps the buffer alive for as long as it is needed.
 class LegendreCache {
 public:
-    const std::vector<uint8_t>& Get(int prime) {
+    std::shared_ptr<const std::vector<uint8_t>> Get(int prime) {
         std::lock_guard<std::mutex> lock(mutex_);
-        auto [it, inserted] = cache_.try_emplace(prime);
-        if (inserted) {
-            it->second = ComputeLegendreSequence(prime);
+        auto& entry = cache_[prime];
+        if (!entry) {
+            entry = std::make_shared<const std::vector<uint8_t>>(
+                ComputeLegendreSequence(prime));
         }
-        return it->second;
+        return entry;
     }
 
     void Clear() {
@@ -57,7 +80,7 @@ public:
     }
 
 private:
-    std::unordered_map<int, std::vector<uint8_t>> cache_;
+    std::unordered_map<int, std::shared_ptr<const std::vector<uint8_t>>> cache_;
     std::mutex mutex_;
 };
 
@@ -66,7 +89,13 @@ LegendreCache g_legendre_cache;
 }  // namespace
 
 std::vector<uint8_t> GenerateLegendreSequence(int prime) {
-    return g_legendre_cache.Get(prime);
+    // The Legendre symbol is only well-defined for a prime modulus, and a
+    // non-positive value would drive an oversized reserve or a divide-by-zero in
+    // the symbol computation. Reject anything that is not a valid prime.
+    if (!IsPrime(prime)) {
+        return {};
+    }
+    return *g_legendre_cache.Get(prime);
 }
 
 void ClearLegendreCache() {
@@ -100,7 +129,9 @@ std::vector<uint8_t> GenerateWeilPrimary(int prn,
         return {};
     }
 
-    const std::vector<uint8_t>& legendre = g_legendre_cache.Get(kWeilPrimaryPrime);
+    const std::shared_ptr<const std::vector<uint8_t>> legendre_holder =
+        g_legendre_cache.Get(kWeilPrimaryPrime);
+    const std::vector<uint8_t>& legendre = *legendre_holder;
     static constexpr std::array<uint8_t, kExpansionLength> kExpansion = {0, 1, 1, 0, 1, 0, 0};
 
     std::vector<uint8_t> code;
@@ -150,7 +181,9 @@ std::vector<uint8_t> GenerateWeilTertiary(int prn,
         return {};
     }
 
-    const std::vector<uint8_t>& legendre = g_legendre_cache.Get(kWeilTertiaryPrime);
+    const std::shared_ptr<const std::vector<uint8_t>> legendre_holder =
+        g_legendre_cache.Get(kWeilTertiaryPrime);
+    const std::vector<uint8_t>& legendre = *legendre_holder;
     std::vector<uint8_t> code;
     code.reserve(kWeilTertiaryLength);
 
