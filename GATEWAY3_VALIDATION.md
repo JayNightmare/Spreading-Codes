@@ -14,6 +14,7 @@ The gateway validates the complete encoding pipeline, symbol counts, bit allocat
 ## Build Requirements
 
 ### Prerequisites
+
 - **CMake** 3.15+ ([Download](https://cmake.org/download/))
 - **C++ Compiler** (one of):
   - GCC 9+ (Linux/macOS)
@@ -88,30 +89,37 @@ PASS: All tests passed!
 The following requirements are validated by the test suite:
 
 ### ✅ Frame Structure (Figure 9)
+
 - Sync pattern: 68 symbols (0xCCA for start, ends with 0xA)
 - SB1 (header): 52 symbols (BCH encoded FID + TOI)
 - SB2+SB3+SB4 interleaved: 5880 symbols
 - **Total: 6000 symbols**
 
 ### ✅ Bit Allocations (Tables 14, 18, 19, 20)
+
 **SB2 (Clock & Ephemeris):** 1176 bits
+
 - WN (Week Number): 13 bits
 - ITOW (Integer Time of Week): 9 bits
 - TOI (Time of Interval): 7 bits
 - Payload (CED + Health + Time Conv): 1147 bits
 
 **SB3 (Variable Data):** 846 bits
+
 - Type field: 4 or 6 bits (configurable)
 - Payload: 840-842 bits
 
 **SB4 (Network Access):** 846 bits
+
 - Type field: 4 or 6 bits
 - Payload: 840-842 bits
 
 ### ✅ Frame Duration
+
 - 6000 symbols @ 500 symbols/sec = **12 seconds**
 
 ### ✅ Encoding Pipeline
+
 - SB1: BCH(51,8) encoding → 52 symbols
 - SB2: Payload → CRC-24 → LDPC(1/2) → 2400 symbols
 - SB3/4: Payload → CRC-24 → LDPC(1/2) → 1740 symbols each
@@ -138,6 +146,7 @@ After successful test run, the following files are created in system temp direct
 ## Troubleshooting
 
 ### Build Fails: "CMakeLists.txt not found"
+
 ```bash
 # Make sure you're in the repository root
 cd Spreading-Codes
@@ -145,18 +154,23 @@ ls CMakeLists.txt  # Should exist
 ```
 
 ### Build Fails: "C++ compiler not found"
+
 Install a C++17 compatible compiler:
+
 - **Windows:** [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/)
 - **macOS:** `xcode-select --install`
 - **Linux:** `sudo apt-get install build-essential cmake`
 
 ### Tests Fail: "LDPC matrices not found"
+
 The tests load LDPC matrices from `Validation/annex3/csv/`. Ensure:
+
 ```bash
 ls Validation/annex3/csv/004a*.csv  # Should exist
 ```
 
 ### Tests Fail: "Spreading code config not found"
+
 ```bash
 ls config/spreading_codes_config.ini  # Should exist
 ```
@@ -164,6 +178,7 @@ ls config/spreading_codes_config.ini  # Should exist
 ## Next Steps
 
 Once Gateway 3 validation passes:
+
 1. ✅ **Gateway 3 Complete** — Commit validation proof
 2. → **Gateway 4:** Baseband Signal Generation (I/Q modulators)
 3. → **Gateway 5-6:** Decoding pipeline
@@ -172,6 +187,7 @@ Once Gateway 3 validation passes:
 ---
 
 **To complete Gateway 3:**
+
 1. Build the project following instructions above
 2. Run the test suite
 3. Verify all tests pass

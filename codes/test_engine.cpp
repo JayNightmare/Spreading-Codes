@@ -17,6 +17,10 @@
 #include "gateway3/subframe3_builder.h"
 #include "gateway3/subframe4_builder.h"
 #include "gateway3/sync_pattern.h"
+#include "gateway4/bpsk_modulator.h"
+#include "gateway4/iq_generator.h"
+#include "gateway4/signal_config.h"
+#include "gateway4/signal_exporter.h"
 
 #include <algorithm>
 #include <chrono>
@@ -37,6 +41,7 @@ enum class GatewaySelection {
     kGateway1,
     kGateway2,
     kGateway3,
+    kGateway4,
 };
 
 struct RunOptions {
@@ -73,6 +78,10 @@ bool ParseGatewaySelection(const std::string& value, GatewaySelection* selection
         *selection = GatewaySelection::kGateway3;
         return true;
     }
+    if (normalized == "gateway4" || normalized == "g4" || normalized == "4") {
+        *selection = GatewaySelection::kGateway4;
+        return true;
+    }
     return false;
 }
 
@@ -81,6 +90,7 @@ std::string GatewayScopeName(GatewaySelection selection) {
         case GatewaySelection::kGateway1: return "gateway1";
         case GatewaySelection::kGateway2: return "gateway2";
         case GatewaySelection::kGateway3: return "gateway3";
+        case GatewaySelection::kGateway4: return "gateway4";
         case GatewaySelection::kAll:
         default: return "all";
     }
@@ -88,9 +98,9 @@ std::string GatewayScopeName(GatewaySelection selection) {
 
 void PrintUsage(std::ostream& out, const char* exe_name) {
     out << "Usage: " << exe_name
-        << " [config_path] [reports_base] [--gateway <all|gateway1|gateway2|gateway3>]" << std::endl;
+        << " [config_path] [reports_base] [--gateway <all|gateway1|gateway2|gateway3|gateway4>]" << std::endl;
     out << "       " << exe_name
-        << " [--gateway <all|gateway1|gateway2|gateway3>] [config_path] [reports_base]" << std::endl;
+        << " [--gateway <all|gateway1|gateway2|gateway3|gateway4>] [config_path] [reports_base]" << std::endl;
     out << std::endl;
     out << "Options:" << std::endl;
     out << "  --gateway, -g  Validation scope to run (default: all)." << std::endl;
@@ -865,6 +875,20 @@ void RunGateway3Tests(
                 kFrame, "Sync pattern not interleaved (frame[0..67] intact)",
                 sync_intact, "Sync symbols were modified by interleaver", reporter);
 
+            // Per Figure 9, only SB2/SB3/SB4 are interleaved; SB1 must remain in the
+            // clear immediately after the sync pattern at frame[68..119].
+            const auto sb1_expected = lunanet::gateway3::BuildSubframe1(input.fid, input.toi);
+            bool sb1_intact =
+                static_cast<int>(sb1_expected.size()) == lunanet::gateway3::kSb1Symbols;
+            for (int i = 0; sb1_intact && i < lunanet::gateway3::kSb1Symbols; ++i) {
+                if (frame[lunanet::gateway3::kSyncPatternSymbols + i] != sb1_expected[i]) {
+                    sb1_intact = false;
+                }
+            }
+            lunanet::testing::ValidateCondition(
+                kFrame, "SB1 not interleaved (frame[68..119] intact)",
+                sb1_intact, "SB1 symbols were modified by interleaver", reporter);
+
             bool all_binary = true;
             for (const auto s : frame) { if (s > 1) { all_binary = false; break; } }
             lunanet::testing::ValidateCondition(
@@ -977,6 +1001,201 @@ void RunGateway3Tests(
     }
 }
 
+void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
+    namespace g4 = lunanet::gateway4;
+
+    const std::string kBpsk   = "Gateway4/BPSK";
+    const std::string kMod    = "Gateway4/DataMod";
+    const std::string kIq     = "Gateway4/IQ";
+    const std::string kSync   = "Gateway4/Sync";
+    const std::string kExport = "Gateway4/Export";
+    const std::string kPerf   = "Gateway4/Performance";
+
+    using Clock = std::chrono::high_resolution_clock;
+    constexpr int kPrn = 1;
+
+    // ── BPSK logic-to-signal mapping (Table 8) ───────────────────────────
+    lunanet::testing::ValidateCondition(
+        kBpsk, "Logic 0 → +1.0", g4::BpskMap(0) == 1.0f,
+        "Got " + std::to_string(g4::BpskMap(0)), reporter);
+    lunanet::testing::ValidateCondition(
+        kBpsk, "Logic 1 → -1.0", g4::BpskMap(1) == -1.0f,
+        "Got " + std::to_string(g4::BpskMap(1)), reporter);
+    {
+        const auto mapped = g4::BpskModulate({0, 1, 1, 0});
+        const std::vector<float> expected = {1.0f, -1.0f, -1.0f, 1.0f};
+        lunanet::testing::ValidateCondition(
+            kBpsk, "Chip stream maps element-wise",
+            mapped == expected, "BPSK vector mapping mismatch", reporter);
+    }
+
+    // ── AFS-I data modulation (LSIS-160) ─────────────────────────────────
+    const auto gold = lunanet::generate_afs_i(kPrn);
+    lunanet::testing::ValidateCondition(
+        kMod, "AFS-I primary = 2046 chips",
+        static_cast<int>(gold.size()) == g4::kAfsIPrimaryChips,
+        "Got " + std::to_string(gold.size()), reporter);
+
+    std::string error;
+    const std::vector<uint8_t> data_symbols = {0, 1, 0, 1};
+    const auto afs_i = g4::ModulateAfsIData(gold, data_symbols, &error);
+
+    lunanet::testing::ValidateCondition(
+        kMod, "Modulated length = symbols × 2046",
+        static_cast<int>(afs_i.size()) ==
+            static_cast<int>(data_symbols.size()) * g4::kAfsIChipsPerSymbol,
+        "Got " + std::to_string(afs_i.size()) +
+        (error.empty() ? "" : ": " + error), reporter);
+
+    if (afs_i.size() == data_symbols.size() * static_cast<size_t>(g4::kAfsIPrimaryChips)) {
+        // Symbol 0 (bit 0) leaves the code unchanged; symbol 1 (bit 1) inverts it.
+        bool sym0_ok = true, sym1_ok = true;
+        for (int i = 0; i < g4::kAfsIPrimaryChips; ++i) {
+            if (afs_i[i] != gold[i]) { sym0_ok = false; break; }
+        }
+        for (int i = 0; i < g4::kAfsIPrimaryChips; ++i) {
+            if (afs_i[g4::kAfsIPrimaryChips + i] != (gold[i] ^ 1u)) { sym1_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kMod, "Data symbol 0 preserves code epoch", sym0_ok,
+            "Symbol-0 epoch differs from primary code", reporter);
+        lunanet::testing::ValidateCondition(
+            kMod, "Data symbol 1 inverts code epoch", sym1_ok,
+            "Symbol-1 epoch is not the inverted primary code", reporter);
+    }
+
+    // ── I/Q generation on a short, time-aligned segment ──────────────────
+    // Two AFS-I symbols (4092 chips) → AFS-Q must carry 5× that (20460 chips).
+    const size_t i_chips = data_symbols.size() * static_cast<size_t>(g4::kAfsIPrimaryChips);
+    const size_t q_chips = i_chips * g4::kQOverIChipRatio;
+    const auto afs_q = lunanet::generate_afs_q(kPrn, q_chips);
+
+    lunanet::testing::ValidateCondition(
+        kIq, "AFS-Q segment = 5 × AFS-I chips",
+        afs_q.size() == q_chips,
+        "Got " + std::to_string(afs_q.size()) + ", expected " + std::to_string(q_chips),
+        reporter);
+
+    {
+        g4::IqConfig config;  // default Fs = AFS-Q chip rate (5.115 MHz)
+        error.clear();
+        const auto gen_start = Clock::now();
+        const auto signal = g4::GenerateIq(afs_i, afs_q, config, &error);
+        const double gen_ms =
+            std::chrono::duration<double, std::milli>(Clock::now() - gen_start).count();
+
+        lunanet::testing::ValidateConditionTimed(
+            kIq, "I and Q sample counts = 20460 (1 sample/Q-chip)",
+            signal.i.size() == q_chips && signal.q.size() == q_chips,
+            "Got I=" + std::to_string(signal.i.size()) +
+            " Q=" + std::to_string(signal.q.size()) +
+            (error.empty() ? "" : ": " + error), gen_ms, reporter);
+
+        bool all_pm1 = !signal.i.empty();
+        for (const float v : signal.i) { if (v != 1.0f && v != -1.0f) { all_pm1 = false; break; } }
+        for (const float v : signal.q) { if (v != 1.0f && v != -1.0f) { all_pm1 = false; break; } }
+        lunanet::testing::ValidateCondition(
+            kIq, "All I/Q samples are ±1.0", all_pm1,
+            "Found a sample outside {-1.0, +1.0}", reporter);
+
+        // Default Fs gives 5 I-samples per AFS-I chip and 1 Q-sample per AFS-Q chip.
+        bool i_hold_ok = signal.i.size() == q_chips;
+        for (size_t n = 0; n < signal.i.size() && i_hold_ok; ++n) {
+            if (signal.i[n] != g4::BpskMap(afs_i[n / g4::kQOverIChipRatio])) i_hold_ok = false;
+        }
+        lunanet::testing::ValidateCondition(
+            kIq, "AFS-I held 5 samples/chip (code/data sync)", i_hold_ok,
+            "AFS-I zero-order-hold alignment incorrect", reporter);
+
+        bool q_align_ok = signal.q.size() == q_chips;
+        for (size_t n = 0; n < signal.q.size() && q_align_ok; ++n) {
+            if (signal.q[n] != g4::BpskMap(afs_q[n])) q_align_ok = false;
+        }
+        lunanet::testing::ValidateCondition(
+            kIq, "AFS-Q sample-per-chip alignment", q_align_ok,
+            "AFS-Q sample alignment incorrect", reporter);
+
+        // Export formats on the short segment.
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto bin_path = (tmp / "gw4_test_iq.bin").string();
+        const auto csv_path = (tmp / "gw4_test_iq.csv").string();
+
+        error.clear();
+        const bool bin_ok = g4::ExportIqBinary(signal, bin_path, &error);
+        lunanet::testing::ValidateCondition(
+            kExport, "Export interleaved float32 binary", bin_ok, error, reporter);
+        if (bin_ok) {
+            std::error_code ec;
+            const auto bytes = std::filesystem::file_size(bin_path, ec);
+            const uintmax_t expected_bytes = static_cast<uintmax_t>(q_chips) * 2u * sizeof(float);
+            lunanet::testing::ValidateCondition(
+                kExport, "Binary size = samples × 2 × 4 bytes",
+                !ec && bytes == expected_bytes,
+                "Got " + std::to_string(bytes) + ", expected " + std::to_string(expected_bytes),
+                reporter);
+        }
+
+        error.clear();
+        lunanet::testing::ValidateCondition(
+            kExport, "Export CSV (index,I,Q)",
+            g4::ExportIqCsv(signal, csv_path, &error), error, reporter);
+    }
+
+    // ── Configurable sample rate ─────────────────────────────────────────
+    {
+        g4::IqConfig oversampled;
+        oversampled.sample_rate_hz = 2 * g4::kAfsQChipRateHz;  // 10.23 MHz
+        error.clear();
+        const auto signal2 = g4::GenerateIq(afs_i, afs_q, oversampled, &error);
+        lunanet::testing::ValidateCondition(
+            kIq, "Oversample ×2 doubles sample count",
+            signal2.i.size() == q_chips * 2 && signal2.sample_rate_hz == 2 * g4::kAfsQChipRateHz,
+            "Got " + std::to_string(signal2.i.size()) +
+            (error.empty() ? "" : ": " + error), reporter);
+
+        // A rate that is not a multiple of the AFS-Q chip rate must be rejected.
+        g4::IqConfig invalid;
+        invalid.sample_rate_hz = g4::kAfsIChipRateHz;  // 1.023 MHz (undersamples Q)
+        std::string err2;
+        const auto bad = g4::GenerateIq(afs_i, afs_q, invalid, &err2);
+        lunanet::testing::ValidateCondition(
+            kIq, "Invalid sample rate rejected",
+            bad.i.empty() && !err2.empty(),
+            "Generator accepted an invalid sample rate", reporter);
+    }
+
+    // ── Chip rates, symbol rate, and 12-second duration (Table 7, LSIS-220) ──
+    lunanet::testing::ValidateCondition(
+        kSync, "AFS-I chip rate = 1.023 Mchip/s",
+        g4::kAfsIChipRateHz == 1023000, "Wrong AFS-I chip rate", reporter);
+    lunanet::testing::ValidateCondition(
+        kSync, "AFS-Q chip rate = 5.115 Mchip/s",
+        g4::kAfsQChipRateHz == 5115000, "Wrong AFS-Q chip rate", reporter);
+    lunanet::testing::ValidateCondition(
+        kSync, "AFS-I symbol rate = 500 sym/s",
+        g4::kSymbolRateHz == 500, "Wrong symbol rate", reporter);
+
+    // A full frame spans exactly 12 s on both channels.
+    const long afs_i_frame_chips =
+        static_cast<long>(g4::kFrameSymbols) * g4::kAfsIChipsPerSymbol;  // 12,276,000
+    lunanet::testing::ValidateCondition(
+        kSync, "AFS-I frame = 12 s (12,276,000 chips)",
+        afs_i_frame_chips == static_cast<long>(g4::kAfsIChipRateHz) * g4::kFrameDurationSec,
+        "Got " + std::to_string(afs_i_frame_chips) + " chips", reporter);
+
+    // Derive the AFS-Q tiered length from the actual generated code lengths
+    // (Table 9): primary × secondary × tertiary = one 12 s tertiary period.
+    const auto weil_primary = lunanet::generate_weil_primary(kPrn);
+    const auto weil_tertiary = lunanet::generate_weil_tertiary(kPrn);
+    const long afs_q_frame_chips = static_cast<long>(weil_primary.size()) *
+        g4::kAfsQSecondaryChips * static_cast<long>(weil_tertiary.size());
+    lunanet::testing::ValidateCondition(
+        kSync, "AFS-Q tiered code = 12 s (61,380,000 chips, tertiary→frame sync)",
+        afs_q_frame_chips == static_cast<long>(g4::kAfsQChipRateHz) * g4::kFrameDurationSec &&
+            afs_q_frame_chips == g4::kAfsQTieredChips,
+        "Got " + std::to_string(afs_q_frame_chips) + " chips", reporter);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1012,6 +1231,9 @@ int main(int argc, char** argv) {
     const bool run_gateway3 =
         options.gateway == GatewaySelection::kAll ||
         options.gateway == GatewaySelection::kGateway3;
+    const bool run_gateway4 =
+        options.gateway == GatewaySelection::kAll ||
+        options.gateway == GatewaySelection::kGateway4;
 
     std::cout << "Validation scope: " << GatewayScopeName(options.gateway) << std::endl;
 
@@ -1041,6 +1263,10 @@ int main(int argc, char** argv) {
 
     if (run_gateway3) {
         RunGateway3Tests(repo_root, reporter);
+    }
+
+    if (run_gateway4) {
+        RunGateway4Tests(reporter);
     }
 
     reporter.PrintSummary(std::cout);

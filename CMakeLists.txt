@@ -61,6 +61,25 @@ target_include_directories(lunanet_gateway3 PUBLIC
 )
 target_link_libraries(lunanet_gateway3 PUBLIC lunanet_gateway2)
 
+set(GATEWAY4_SOURCES
+    codes/gateway4/bpsk_modulator.cpp
+    codes/gateway4/iq_generator.cpp
+    codes/gateway4/signal_exporter.cpp
+)
+
+set(GATEWAY4_HEADERS
+    codes/gateway4/signal_config.h
+    codes/gateway4/bpsk_modulator.h
+    codes/gateway4/iq_generator.h
+    codes/gateway4/signal_exporter.h
+)
+
+add_library(lunanet_gateway4 STATIC ${GATEWAY4_SOURCES} ${GATEWAY4_HEADERS})
+target_include_directories(lunanet_gateway4 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway4
+)
+
 set(GATEWAY1_SOURCES
     codes/spreading_codes.cpp
     codes/gateway1/spreading_config.cpp
@@ -111,10 +130,11 @@ target_link_libraries(lunanet_testing PUBLIC ${LIBRARY_NAME})
 add_executable(test_engine
     codes/test_engine.cpp
 )
-target_link_libraries(test_engine PRIVATE lunanet_testing lunanet_gateway2 lunanet_gateway3)
+target_link_libraries(test_engine PRIVATE lunanet_testing lunanet_gateway2 lunanet_gateway3 lunanet_gateway4)
 target_include_directories(test_engine PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/codes
     ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway3
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway4
 )
 set_target_properties(test_engine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
@@ -140,6 +160,13 @@ add_test(
     COMMAND test_engine
         ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
         --gateway gateway3
+)
+
+add_test(
+    NAME gateway4_validation
+    COMMAND test_engine
+        ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
+        --gateway gateway4
 )
 
 install(TARGETS ${LIBRARY_NAME}

@@ -191,28 +191,33 @@ Your submission **must** include ALL of the following or it receives 0 points:
 ## Acceptance Criteria Summary
 
 ### **Correctness** (40 points)
+
 - Spreading codes: 100% match Annex 3 references (32 points from SC)
 - Frame encoding: Correct structure, bit allocations (25 points from MF + FEC)
 - Signal generation: Correct modulation and chip rates (15 points from SG)
 - Decoding & parsing: > 99% frame sync, BER < 10⁻⁵ (29 points from FSD + MP)
 
 ### **Performance** (20 points)
+
 - Code generation: < 1 sec per PRN
 - Encoding: < 100ms per frame
 - Decoding: < 1 sec per frame
 - Real-time: Faster than signal duration (12 seconds)
 
 ### **Completeness** (20 points)
+
 - All 8 gateways: Evidence of implementation
 - End-to-end: Round-trip encode → decode with 100% recovery
 - Interoperability: Decode signals from other teams
 
 ### **Code Quality** (10 points)
+
 - Modular architecture: Clean boundaries
 - Test coverage: > 90% of modules
 - Documentation: Readable, commented code
 
 ### **Innovation & Extras** (10 points)
+
 - Algorithm optimizations
 - Testing tools & visualizations
 - Advanced features (multi-threading, GPU, etc.)
@@ -224,18 +229,21 @@ Your submission **must** include ALL of the following or it receives 0 points:
 Use this checklist to track your progress:
 
 ### Gateways 1–3 (Foundation & Encoding)
+
 - [ ] Spreading codes generated and validated (Gateway 1)
 - [ ] BCH & LDPC encoders working (Gateway 2)
 - [ ] Complete 12-second frame assembly (Gateway 3)
 - [ ] All 12 Table 11 test codes pass
 
 ### Gateways 4–6 (Signal & Decoding)
+
 - [ ] I/Q baseband signals generated (Gateway 4)
 - [ ] Frame sync > 99% at SNR > 0 dB (Gateway 5)
 - [ ] Subframes decoded and parsed (Gateway 6)
 - [ ] BER < 10⁻⁵ at SNR > 0 dB
 
 ### Gateways 7–8 (Integration & Delivery)
+
 - [ ] Round-trip testing: 100% data recovery (Gateway 7)
 - [ ] Interoperability with another implementation
 - [ ] All documentation complete (Gateway 8)
@@ -243,6 +251,7 @@ Use this checklist to track your progress:
 - [ ] Performance benchmarks reported
 
 ### Quality & Compliance
+
 - [ ] > 90% test code coverage
 - [ ] All "shall" requirements verified
 - [ ] Codes match Annex 3 (all 210 PRNs)
@@ -258,4 +267,3 @@ Use this checklist to track your progress:
 4. **Documentation:** Write it as you go — easier to maintain and complete.
 5. **Performance:** Profile and optimize the critical paths (code gen, decoding).
 6. **Interoperability:** Share your frame format and test vectors with other teams early.
-

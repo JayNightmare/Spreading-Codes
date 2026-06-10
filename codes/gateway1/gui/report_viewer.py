@@ -16,6 +16,7 @@ from tkinter import ttk
 from pathlib import Path
 
 from report_parser import ReportData, parse_junit_xml, load_markdown
+from signal_panel import SignalGenerationPanel
 
 # ── Colour Palette (loaded from gui/config/theme.json) ───────────────────────
 
@@ -138,20 +139,36 @@ class ReportViewer(tk.Tk):
 
         self._setup_styles()
         self._build_header()
-        self._build_selector()
 
-        # ── Paned window for resizable split ──────────────────────────────
-        paned = tk.PanedWindow(
-            self, orient=tk.VERTICAL, bg=BG_DARK,
-            sashwidth=6, sashrelief=tk.FLAT, bd=0,
-        )
-        paned.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 4))
+        # ── Tabbed interface: Test Reports + Signal Generation ────────────
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 4))
 
-        self._build_summary_panel(paned)
-        self._build_details_panel(paned)
+        reports_tab = ttk.Frame(notebook, style="Dark.TFrame")
+        notebook.add(reports_tab, text="  Test Reports  ")
+        self._build_reports_tab(reports_tab)
+
+        signal_tab = SignalGenerationPanel(
+            notebook, palette=_T, repo_root=Path(__file__).resolve().parents[3])
+        notebook.add(signal_tab, text="  Signal Generation  ")
 
         self._build_status_bar()
         self._refresh_reports()
+
+    # ── Reports Tab ───────────────────────────────────────────────────────
+
+    def _build_reports_tab(self, parent: tk.Misc) -> None:
+        self._build_selector(parent)
+
+        # Resizable vertical split: summary over details.
+        paned = tk.PanedWindow(
+            parent, orient=tk.VERTICAL, bg=BG_DARK,
+            sashwidth=6, sashrelief=tk.FLAT, bd=0,
+        )
+        paned.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
+
+        self._build_summary_panel(paned)
+        self._build_details_panel(paned)
 
     # ── Style Configuration ───────────────────────────────────────────────
 
@@ -217,6 +234,14 @@ class ReportViewer(tk.Tk):
 
         s.configure("Dark.TFrame", background=BG_DARK)
 
+        # Notebook (tab strip) — dark theme.
+        s.configure("TNotebook", background=BG_DARK, borderwidth=0, tabmargins=(2, 6, 2, 0))
+        s.configure("TNotebook.Tab", background=BG_SURFACE, foreground=FG_SECONDARY,
+                     padding=(18, 7), font=("Segoe UI Semibold", 10), borderwidth=0)
+        s.map("TNotebook.Tab",
+              background=[("selected", BG_ELEVATED)],
+              foreground=[("selected", ACCENT)])
+
     # ── Header ────────────────────────────────────────────────────────────
 
     def _build_header(self) -> None:
@@ -233,9 +258,9 @@ class ReportViewer(tk.Tk):
 
     # ── Report Selector ───────────────────────────────────────────────────
 
-    def _build_selector(self) -> None:
-        frame = ttk.Frame(self, style="Dark.TFrame")
-        frame.pack(fill=tk.X, padx=12, pady=(2, 6))
+    def _build_selector(self, parent: tk.Misc) -> None:
+        frame = ttk.Frame(parent, style="Dark.TFrame")
+        frame.pack(fill=tk.X, pady=(8, 6))
 
         ttk.Label(frame, text="REPORT", style="Section.TLabel").pack(side=tk.LEFT, padx=(0, 8))
 
