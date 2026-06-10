@@ -9,6 +9,13 @@
 #include "gateway2/crc24.h"
 #include "gateway2/interleaver.h"
 #include "gateway2/ldpc_encoder.h"
+#include "gateway3/frame_assembler.h"
+#include "gateway3/frame_exporter.h"
+#include "gateway3/subframe1_builder.h"
+#include "gateway3/subframe2_builder.h"
+#include "gateway3/subframe3_builder.h"
+#include "gateway3/subframe4_builder.h"
+#include "gateway3/sync_pattern.h"
 
 #include <algorithm>
 #include <chrono>
@@ -28,6 +35,7 @@ enum class GatewaySelection {
     kAll,
     kGateway1,
     kGateway2,
+    kGateway3,
 };
 
 struct RunOptions {
@@ -60,6 +68,10 @@ bool ParseGatewaySelection(const std::string& value, GatewaySelection* selection
         *selection = GatewaySelection::kGateway2;
         return true;
     }
+    if (normalized == "gateway3" || normalized == "g3" || normalized == "3") {
+        *selection = GatewaySelection::kGateway3;
+        return true;
+    }
     return false;
 }
 
@@ -67,6 +79,7 @@ std::string GatewayScopeName(GatewaySelection selection) {
     switch (selection) {
         case GatewaySelection::kGateway1: return "gateway1";
         case GatewaySelection::kGateway2: return "gateway2";
+        case GatewaySelection::kGateway3: return "gateway3";
         case GatewaySelection::kAll:
         default: return "all";
     }
@@ -74,9 +87,9 @@ std::string GatewayScopeName(GatewaySelection selection) {
 
 void PrintUsage(std::ostream& out, const char* exe_name) {
     out << "Usage: " << exe_name
-        << " [config_path] [reports_base] [--gateway <all|gateway1|gateway2>]" << std::endl;
+        << " [config_path] [reports_base] [--gateway <all|gateway1|gateway2|gateway3>]" << std::endl;
     out << "       " << exe_name
-        << " [--gateway <all|gateway1|gateway2>] [config_path] [reports_base]" << std::endl;
+        << " [--gateway <all|gateway1|gateway2|gateway3>] [config_path] [reports_base]" << std::endl;
     out << std::endl;
     out << "Options:" << std::endl;
     out << "  --gateway, -g  Validation scope to run (default: all)." << std::endl;
@@ -627,6 +640,342 @@ void RunLdpcTests(
     }
 }
 
+void RunGateway3Tests(
+    const std::filesystem::path& repo_root,
+    lunanet::testing::TestReporter& reporter) {
+
+    const std::string kSync  = "Gateway3/Sync";
+    const std::string kSB1   = "Gateway3/SB1";
+    const std::string kSB2   = "Gateway3/SB2";
+    const std::string kSB3   = "Gateway3/SB3";
+    const std::string kSB4   = "Gateway3/SB4";
+    const std::string kFrame = "Gateway3/Frame";
+    const std::string kPerf  = "Gateway3/Performance";
+
+    using Clock = std::chrono::high_resolution_clock;
+    const std::filesystem::path csv_dir = repo_root / "Validation" / "annex3" / "csv";
+    std::string error;
+
+    // ── Load LDPC matrices ───────────────────────────────────────────────
+    lunanet::gateway3::FrameMatrices matrices;
+    const auto load_start = Clock::now();
+    const bool matrices_loaded =
+        lunanet::gateway3::LoadFrameMatrices(csv_dir.string(), &matrices, &error);
+    const double load_ms =
+        std::chrono::duration<double, std::milli>(Clock::now() - load_start).count();
+
+    lunanet::testing::ValidateConditionTimed(
+        kFrame, "Load LDPC matrices", matrices_loaded, error, load_ms, reporter);
+
+    // ── Sync Pattern ─────────────────────────────────────────────────────
+    const auto sync = lunanet::gateway3::BuildSyncPattern();
+
+    lunanet::testing::ValidateCondition(
+        kSync, "Length = 68 symbols",
+        static_cast<int>(sync.size()) == 68,
+        "Got " + std::to_string(sync.size()), reporter);
+
+    {
+        bool all_binary = true;
+        for (const auto s : sync) { if (s > 1) { all_binary = false; break; } }
+        lunanet::testing::ValidateCondition(
+            kSync, "All symbols binary", all_binary,
+            "Non-binary symbol found", reporter);
+    }
+
+    if (sync.size() == 68) {
+        // CC = 1100 1100 → first 8 bits
+        const uint8_t exp_first8[] = {1,1,0,0, 1,1,0,0};
+        bool ok = true;
+        for (int i = 0; i < 8; ++i) { if (sync[i] != exp_first8[i]) { ok = false; break; } }
+        lunanet::testing::ValidateCondition(
+            kSync, "First byte matches 0xCC (1100 1100)", ok,
+            "Sync bit mismatch at first byte", reporter);
+
+        // Last nibble A = 1010 → bits 64-67
+        const uint8_t exp_last4[] = {1,0,1,0};
+        ok = true;
+        for (int i = 0; i < 4; ++i) { if (sync[64 + i] != exp_last4[i]) { ok = false; break; } }
+        lunanet::testing::ValidateCondition(
+            kSync, "Last nibble matches 0xA (1010)", ok,
+            "Sync bit mismatch at last nibble", reporter);
+    }
+
+    // ── Subframe 1 ───────────────────────────────────────────────────────
+    {
+        const auto sb1 = lunanet::gateway3::BuildSubframe1(0, 0);
+        lunanet::testing::ValidateCondition(
+            kSB1, "Length = 52 symbols",
+            static_cast<int>(sb1.size()) == lunanet::gateway3::kSb1Symbols,
+            "Got " + std::to_string(sb1.size()), reporter);
+    }
+
+    // Round-trip: encode → soft-decision decode → verify FID and TOI recovered
+    for (const auto& [fid, toi] : std::vector<std::pair<uint8_t, uint8_t>>{
+            {0, 0}, {1, 50}, {3, 99}, {2, 1}}) {
+        const auto sb1 = lunanet::gateway3::BuildSubframe1(fid, toi);
+        std::vector<double> soft(sb1.begin(), sb1.end());
+        for (auto& s : soft) { s = (s == 0) ? 1.0 : -1.0; }
+        const int decoded = lunanet::gateway2::BchDecodeSoft(soft);
+        const uint16_t expected = static_cast<uint16_t>((fid << 7) | toi);
+        lunanet::testing::ValidateCondition(
+            kSB1, "Round-trip FID=" + std::to_string(fid) + " TOI=" + std::to_string(toi),
+            decoded == static_cast<int>(expected),
+            "Decoded 0x" + std::to_string(decoded) +
+            ", expected 0x" + std::to_string(expected), reporter);
+    }
+
+    // ── Subframe 2 ───────────────────────────────────────────────────────
+    {
+        lunanet::gateway3::Subframe2Data sb2_data;
+        sb2_data.wn = 100; sb2_data.itow = 0; sb2_data.toi = 1;
+
+        auto packed = lunanet::gateway3::PackSubframe2(sb2_data);
+        lunanet::testing::ValidateCondition(
+            kSB2, "Pack = 1176 bits",
+            static_cast<int>(packed.size()) == lunanet::gateway3::kSb2DataBits,
+            "Got " + std::to_string(packed.size()), reporter);
+
+        lunanet::gateway2::Crc24Append(packed);
+        lunanet::testing::ValidateCondition(
+            kSB2, "CRC-24 verifies after append",
+            lunanet::gateway2::Crc24Verify(packed),
+            "CRC verification failed on packed SB2", reporter);
+
+        if (matrices_loaded) {
+            error.clear();
+            const auto enc_start = Clock::now();
+            const auto sb2 = lunanet::gateway3::BuildSubframe2(sb2_data, matrices.sb2, &error);
+            const double enc_ms =
+                std::chrono::duration<double, std::milli>(Clock::now() - enc_start).count();
+
+            lunanet::testing::ValidateConditionTimed(
+                kSB2, "LDPC encode → 2400 symbols",
+                static_cast<int>(sb2.size()) == lunanet::gateway3::kSb2Symbols,
+                "Got " + std::to_string(sb2.size()) +
+                (error.empty() ? "" : ": " + error), enc_ms, reporter);
+
+            if (!sb2.empty()) {
+                bool all_binary = true;
+                for (const auto s : sb2) { if (s > 1) { all_binary = false; break; } }
+                lunanet::testing::ValidateCondition(
+                    kSB2, "All encoded symbols binary", all_binary,
+                    "Non-binary symbol found", reporter);
+            }
+        }
+    }
+
+    // ── Subframe 3 ───────────────────────────────────────────────────────
+    {
+        lunanet::gateway3::Subframe3Data sb3_data;
+        sb3_data.type = 1;
+
+        auto packed = lunanet::gateway3::PackSubframe3(sb3_data);
+        lunanet::testing::ValidateCondition(
+            kSB3, "Pack = 846 bits",
+            static_cast<int>(packed.size()) == lunanet::gateway3::kSb3DataBits,
+            "Got " + std::to_string(packed.size()), reporter);
+
+        lunanet::gateway2::Crc24Append(packed);
+        lunanet::testing::ValidateCondition(
+            kSB3, "CRC-24 verifies after append",
+            lunanet::gateway2::Crc24Verify(packed),
+            "CRC verification failed on packed SB3", reporter);
+
+        if (matrices_loaded) {
+            error.clear();
+            const auto enc_start = Clock::now();
+            const auto sb3 = lunanet::gateway3::BuildSubframe3(sb3_data, matrices.sb34, &error);
+            const double enc_ms =
+                std::chrono::duration<double, std::milli>(Clock::now() - enc_start).count();
+
+            lunanet::testing::ValidateConditionTimed(
+                kSB3, "LDPC encode → 1740 symbols",
+                static_cast<int>(sb3.size()) == lunanet::gateway3::kSb3Symbols,
+                "Got " + std::to_string(sb3.size()) +
+                (error.empty() ? "" : ": " + error), enc_ms, reporter);
+        }
+    }
+
+    // ── Subframe 4 ───────────────────────────────────────────────────────
+    {
+        lunanet::gateway3::Subframe4Data sb4_data;
+        sb4_data.type = 2;
+
+        auto packed = lunanet::gateway3::PackSubframe4(sb4_data);
+        lunanet::testing::ValidateCondition(
+            kSB4, "Pack = 846 bits",
+            static_cast<int>(packed.size()) == lunanet::gateway3::kSb4DataBits,
+            "Got " + std::to_string(packed.size()), reporter);
+
+        lunanet::gateway2::Crc24Append(packed);
+        lunanet::testing::ValidateCondition(
+            kSB4, "CRC-24 verifies after append",
+            lunanet::gateway2::Crc24Verify(packed),
+            "CRC verification failed on packed SB4", reporter);
+
+        if (matrices_loaded) {
+            error.clear();
+            const auto enc_start = Clock::now();
+            const auto sb4 = lunanet::gateway3::BuildSubframe4(sb4_data, matrices.sb34, &error);
+            const double enc_ms =
+                std::chrono::duration<double, std::milli>(Clock::now() - enc_start).count();
+
+            lunanet::testing::ValidateConditionTimed(
+                kSB4, "LDPC encode → 1740 symbols",
+                static_cast<int>(sb4.size()) == lunanet::gateway3::kSb4Symbols,
+                "Got " + std::to_string(sb4.size()) +
+                (error.empty() ? "" : ": " + error), enc_ms, reporter);
+        }
+    }
+
+    // ── Full Frame Assembly ───────────────────────────────────────────────
+    if (matrices_loaded) {
+        lunanet::gateway3::FrameInput input;
+        input.fid = 0; input.toi = 1;
+        input.sb2.wn = 100; input.sb2.itow = 0; input.sb2.toi = 1;
+        input.sb3.type = 1;
+        input.sb4.type = 2;
+
+        error.clear();
+        const auto frame_start = Clock::now();
+        const auto frame = lunanet::gateway3::AssembleFrame(input, matrices, &error);
+        const double frame_ms =
+            std::chrono::duration<double, std::milli>(Clock::now() - frame_start).count();
+
+        lunanet::testing::ValidateConditionTimed(
+            kFrame, "Full frame = 6000 symbols",
+            static_cast<int>(frame.size()) == lunanet::gateway3::kFrameSymbols,
+            "Got " + std::to_string(frame.size()) +
+            (error.empty() ? "" : ": " + error), frame_ms, reporter);
+
+        lunanet::testing::ValidateCondition(
+            kPerf, "Frame assembly < 100ms",
+            frame_ms < 100.0,
+            std::to_string(frame_ms) + " ms", reporter);
+
+        if (static_cast<int>(frame.size()) == lunanet::gateway3::kFrameSymbols) {
+            // Sync and SB1 are not interleaved — verify they sit at frame[0..119] unchanged
+            bool sync_intact = true;
+            for (int i = 0; i < lunanet::gateway3::kSyncPatternSymbols; ++i) {
+                if (frame[i] != sync[i]) { sync_intact = false; break; }
+            }
+            lunanet::testing::ValidateCondition(
+                kFrame, "Sync pattern not interleaved (frame[0..67] intact)",
+                sync_intact, "Sync symbols were modified by interleaver", reporter);
+
+            bool all_binary = true;
+            for (const auto s : frame) { if (s > 1) { all_binary = false; break; } }
+            lunanet::testing::ValidateCondition(
+                kFrame, "All 6000 frame symbols binary",
+                all_binary, "Non-binary symbol found", reporter);
+
+            // Export binary and CSV — then verify hex length and both writes succeed
+            const auto tmp = std::filesystem::temp_directory_path();
+            const auto bin_path = (tmp / "gw3_test_frame.bin").string();
+            const auto csv_path = (tmp / "gw3_test_frame.csv").string();
+
+            error.clear();
+            lunanet::testing::ValidateCondition(
+                kFrame, "Export binary (750 bytes)",
+                lunanet::gateway3::ExportFrameBinary(frame, bin_path, &error),
+                error, reporter);
+
+            error.clear();
+            lunanet::testing::ValidateCondition(
+                kFrame, "Export CSV (6000 lines)",
+                lunanet::gateway3::ExportFrameCsv(frame, csv_path, &error),
+                error, reporter);
+
+            // Hex string length: 6000 bits → 750 bytes → 1500 hex chars
+            const std::string hex = lunanet::gateway3::ExportFrameHex(frame);
+            lunanet::testing::ValidateCondition(
+                kFrame, "Hex export = 1500 chars (750 packed bytes)",
+                hex.size() == 1500,
+                "Got " + std::to_string(hex.size()) + " chars", reporter);
+
+            // Frame timing: 6000 symbols @ 500 symbols/sec = 12 seconds
+            const double frame_duration_sec = static_cast<double>(frame.size()) / 500.0;
+            lunanet::testing::ValidateCondition(
+                kFrame, "Frame duration = 12 seconds",
+                std::abs(frame_duration_sec - 12.0) < 0.01,
+                std::to_string(frame_duration_sec) + " sec", reporter);
+        }
+    }
+
+    // ── Bit Allocation Validation (per specification tables) ───────────────
+    {
+        // SB2: Table 14 specifies layout as WN(13) + ITOW(9) + TOI(7) + payload
+        lunanet::gateway3::Subframe2Data sb2_data;
+        sb2_data.wn = 0x1FFF;      // Max 13-bit value
+        sb2_data.itow = 0x1FF;     // Max 9-bit value
+        sb2_data.toi = 0x7F;       // Max 7-bit value
+        auto sb2_packed = lunanet::gateway3::PackSubframe2(sb2_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB2, "Bit allocation = 1176 bits (13+9+7+1147)",
+            static_cast<int>(sb2_packed.size()) == lunanet::gateway3::kSb2DataBits,
+            "Got " + std::to_string(sb2_packed.size()) + " bits", reporter);
+
+        // Verify first 29 bits match field sizes: WN(13) + ITOW(9) + TOI(7)
+        bool wn_ok = true;
+        for (int i = 0; i < 13; ++i) {
+            if (sb2_packed[i] != 1u) { wn_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "WN field (bits 0-12) encodes correctly",
+            wn_ok, "WN bits not all set for max value", reporter);
+
+        bool itow_ok = true;
+        for (int i = 13; i < 22; ++i) {
+            if (sb2_packed[i] != 1u) { itow_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "ITOW field (bits 13-21) encodes correctly",
+            itow_ok, "ITOW bits not all set for max value", reporter);
+
+        bool toi_ok = true;
+        for (int i = 22; i < 29; ++i) {
+            if (sb2_packed[i] != 1u) { toi_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB2, "TOI field (bits 22-28) encodes correctly",
+            toi_ok, "TOI bits not all set for max value", reporter);
+    }
+
+    // SB3/SB4: Tables 18-19 specify type field + payload
+    {
+        // Type field: 4 or 6 bits per frame_config.h (kSb34TypeFieldBits)
+        lunanet::gateway3::Subframe3Data sb3_data;
+        sb3_data.type = 0xF;  // All bits set for type field
+        auto sb3_packed = lunanet::gateway3::PackSubframe3(sb3_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB3, "Bit allocation = 846 bits (type + payload)",
+            static_cast<int>(sb3_packed.size()) == lunanet::gateway3::kSb3DataBits,
+            "Got " + std::to_string(sb3_packed.size()) + " bits", reporter);
+
+        // Type field should occupy first kSb34TypeFieldBits
+        bool type_ok = true;
+        for (int i = 0; i < lunanet::gateway3::kSb34TypeFieldBits; ++i) {
+            if (sb3_packed[i] != 1u) { type_ok = false; break; }
+        }
+        lunanet::testing::ValidateCondition(
+            kSB3, "Type field (bits 0-3 or 0-5) encodes correctly",
+            type_ok, "Type field bits not set for max value", reporter);
+
+        // SB4 identical structure to SB3
+        lunanet::gateway3::Subframe4Data sb4_data;
+        sb4_data.type = 0xF;
+        auto sb4_packed = lunanet::gateway3::PackSubframe4(sb4_data);
+
+        lunanet::testing::ValidateCondition(
+            kSB4, "Bit allocation = 846 bits (type + payload)",
+            static_cast<int>(sb4_packed.size()) == lunanet::gateway3::kSb4DataBits,
+            "Got " + std::to_string(sb4_packed.size()) + " bits", reporter);
+    }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -659,6 +1008,9 @@ int main(int argc, char** argv) {
     const bool run_gateway2 =
         options.gateway == GatewaySelection::kAll ||
         options.gateway == GatewaySelection::kGateway2;
+    const bool run_gateway3 =
+        options.gateway == GatewaySelection::kAll ||
+        options.gateway == GatewaySelection::kGateway3;
 
     std::cout << "Validation scope: " << GatewayScopeName(options.gateway) << std::endl;
 
@@ -684,6 +1036,10 @@ int main(int argc, char** argv) {
     if (run_gateway2) {
         RunGateway2Tests(reporter);
         RunLdpcTests(repo_root, reporter);
+    }
+
+    if (run_gateway3) {
+        RunGateway3Tests(repo_root, reporter);
     }
 
     reporter.PrintSummary(std::cout);

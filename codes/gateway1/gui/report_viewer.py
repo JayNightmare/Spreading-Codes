@@ -1,7 +1,7 @@
-"""Gateway 1 — Test Report Viewer
+"""LunaNet — Test Report Viewer
 
 Displays markdown summary and fine-grained JUnit XML results
-with color-coded pass/fail highlighting.
+with color-coded pass/fail highlighting. Covers all gateways.
 
 Usage:
     python codes/gateway1/gui/report_viewer.py
@@ -128,7 +128,7 @@ class ReportViewer(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
-        self.title("Gateway 1: Test Report")
+        self.title("LunaNet: Test Report")
         self.geometry("1200x820")
         self.minsize(960, 640)
         self.configure(bg=BG_DARK)
@@ -224,7 +224,7 @@ class ReportViewer(tk.Tk):
         frame.pack(fill=tk.X, padx=12, pady=(10, 2))
 
         ttk.Label(
-            frame, text="Gateway 1: Test Report",
+            frame, text="LunaNet: Test Report",
             style="Header.TLabel",
         ).pack(side=tk.LEFT)
 

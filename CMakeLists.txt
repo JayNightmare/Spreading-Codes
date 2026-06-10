@@ -32,6 +32,35 @@ target_include_directories(lunanet_gateway2 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
 )
 
+set(GATEWAY3_SOURCES
+    codes/gateway3/sync_pattern.cpp
+    codes/gateway3/subframe1_builder.cpp
+    codes/gateway3/subframe2_builder.cpp
+    codes/gateway3/subframe3_builder.cpp
+    codes/gateway3/subframe4_builder.cpp
+    codes/gateway3/frame_assembler.cpp
+    codes/gateway3/frame_exporter.cpp
+)
+
+set(GATEWAY3_HEADERS
+    codes/gateway3/frame_config.h
+    codes/gateway3/sync_pattern.h
+    codes/gateway3/subframe1_builder.h
+    codes/gateway3/subframe2_builder.h
+    codes/gateway3/subframe3_builder.h
+    codes/gateway3/subframe4_builder.h
+    codes/gateway3/frame_assembler.h
+    codes/gateway3/frame_exporter.h
+)
+
+add_library(lunanet_gateway3 STATIC ${GATEWAY3_SOURCES} ${GATEWAY3_HEADERS})
+target_include_directories(lunanet_gateway3 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway3
+)
+target_link_libraries(lunanet_gateway3 PUBLIC lunanet_gateway2)
+
 set(GATEWAY1_SOURCES
     codes/spreading_codes.cpp
     codes/gateway1/spreading_config.cpp
@@ -82,9 +111,10 @@ target_link_libraries(lunanet_testing PUBLIC ${LIBRARY_NAME})
 add_executable(test_engine
     codes/test_engine.cpp
 )
-target_link_libraries(test_engine PRIVATE lunanet_testing lunanet_gateway2)
+target_link_libraries(test_engine PRIVATE lunanet_testing lunanet_gateway2 lunanet_gateway3)
 target_include_directories(test_engine PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway3
 )
 set_target_properties(test_engine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
@@ -103,6 +133,13 @@ add_test(
     COMMAND test_engine
         ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
         --gateway gateway2
+)
+
+add_test(
+    NAME gateway3_validation
+    COMMAND test_engine
+        ${CMAKE_CURRENT_SOURCE_DIR}/config/spreading_codes_config.ini
+        --gateway gateway3
 )
 
 install(TARGETS ${LIBRARY_NAME}

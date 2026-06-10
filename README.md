@@ -2,7 +2,7 @@
 
 Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code generators and forward error correction (FEC) encoders, built to the **LSIS-AFS Volume A** specification.
 
-**735/735 tests passing** across 10 validation suites.
+**765/765 tests passing** across 12 validation suites.
 
 ---
 
@@ -22,6 +22,16 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 - **CRC-24Q** — Polynomial `0x864CFB` (GPS CNAV compatible). Compute, append, and verify.
 - **LDPC Rate-1/2 Encoder** — Dense GF(2) submatrix encoding (A, B⁻¹, C, D) for SB2 (1200→2400) and SB3/SB4 (870→1740). Matrices loaded from Annex 1 CSV files.
 - **Block Interleaver** — 60×98 write-row/read-column interleaver for SB2+SB3+SB4 concatenation (5880 symbols).
+
+### Gateway 3 — Navigation Message Framing
+
+- **Synchronization Pattern Generator** — 68-symbol fixed sequence (0xCCA...A) for frame boundary detection per Table 12.
+- **Subframe 1 Builder** — Frame ID and Time of Interval packed and BCH(51,8) encoded to 52 symbols.
+- **Subframe 2 Builder** — Clock and Ephemeris data (1176 bits) with CRC-24 and LDPC encoding to 2400 symbols.
+- **Subframe 3 Builder** — Variable broadcast messages with type field and payload (846 bits), CRC-24, and LDPC encoding to 1740 symbols.
+- **Subframe 4 Builder** — Network access information (846 bits) with identical encoding pipeline to SB3, producing 1740 symbols.
+- **Frame Assembler** — Concatenates all subframes with block interleaving, produces 6000-symbol complete frame (12 seconds at 500 sym/s).
+- **Frame Export** — Binary (750 bytes), CSV (6000 lines), and hexadecimal (1500 chars) output formats.
 
 ### Cross-Language Bridge
 
@@ -53,6 +63,15 @@ Spreading-Codes/
 │   │   ├── crc24.*                 #   CRC-24Q
 │   │   ├── ldpc_encoder.*          #   LDPC rate-1/2 encoder
 │   │   └── interleaver.*           #   60×98 block interleaver
+│   ├── gateway3/                   # Frame assembly
+│   │   ├── sync_pattern.*          #   68-symbol sync generator
+│   │   ├── subframe1_builder.*     #   SB1 BCH encoder
+│   │   ├── subframe2_builder.*     #   SB2 LDPC encoder
+│   │   ├── subframe3_builder.*     #   SB3 LDPC encoder
+│   │   ├── subframe4_builder.*     #   SB4 LDPC encoder
+│   │   ├── frame_assembler.*       #   Frame composition & interleaving
+│   │   ├── frame_exporter.*        #   Binary/CSV/Hex output
+│   │   └── frame_config.h          #   Configuration parameters
 │   ├── testing/                    # Test framework
 │   │   ├── test_reporter.*         #   Markdown + JUnit XML output
 │   │   ├── test_validators.*       #   Validation primitives
@@ -88,7 +107,7 @@ Outputs:
 
 ## Validation
 
-Run the full test suite (735 tests across 10 suites):
+Run the full test suite (765 tests across 12 suites):
 
 ```bash
 ./build/bin/Release/test_engine.exe config/spreading_codes_config.ini
@@ -97,12 +116,13 @@ Run the full test suite (735 tests across 10 suites):
 Run modular CTest targets:
 
 ```bash
-# Run both gateway validation targets
+# Run all gateway validation targets
 ctest --test-dir build --output-on-failure
 
-# Run only one gateway target
+# Run specific gateway targets
 ctest --test-dir build -R gateway1_validation --output-on-failure
 ctest --test-dir build -R gateway2_validation --output-on-failure
+ctest --test-dir build -R gateway3_validation --output-on-failure
 ```
 
 Run only one gateway validation scope:
@@ -113,6 +133,9 @@ Run only one gateway validation scope:
 
 # Gateway 2 only
 ./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway2
+
+# Gateway 3 only
+./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway3
 ```
 
 ```text
@@ -125,9 +148,11 @@ Gateway2/BCH reference validation:     PASS (10/10)
 Gateway2/CRC24 reference validation:   PASS (4/4)
 Gateway2/Interleaver reference validation: PASS (4/4)
 Gateway2/LDPC reference validation:    PASS (12/12)
+Gateway3/Frame structure validation:   PASS (10/10)
+Gateway3/Bit allocation validation:    PASS (8/8)
 Performance reference validation:      PASS (3/3)
 
-Selected validation checks passed. (735/735 tests)
+Selected validation checks passed. (765/765 tests)
 ```
 
 Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for full runs, or `Validation/reports/YYYY-MM-DD/HH-MM-SS_gatewayX.{md,xml}` for gateway-filtered runs.
@@ -138,7 +163,7 @@ Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for ful
 python codes/gateway1/gui/report_viewer.py
 ```
 
-Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports.
+Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports. Displays validation results for all gateways (1, 2, and 3).
 
 ---
 
@@ -176,7 +201,7 @@ Outputs `prn001_afs_i.bin`, `prn001_afs_q.bin`, `prn001_iq_interleaved.bin`, and
 
 ## Performance
 
-Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) completes in **< 0.5 ms per PRN**, well under the SC-1.7 requirement of < 1 second.
+Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) completes in **< 0.5 ms per PRN**, well under the SC-1.7 requirement of < 1 second. Complete frame assembly (6000 symbols) completes in **< 100 milliseconds**.
 
 | Operation                   | Time     |
 | --------------------------- | -------- |
@@ -184,23 +209,27 @@ Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) compl
 | Weil Primary (10230 chips)  | ~0.1 ms  |
 | AFS-Q tiered (1 epoch)      | ~0.3 ms  |
 | LDPC SB2 encode (1200→2400) | < 100 ms |
+| Frame assembly (6000 sym)   | < 100 ms |
 
 ---
 
 ## Specification Compliance
 
-| Requirement                      | Status | Tests    |
-| -------------------------------- | ------ | -------- |
-| SC-1.1 Gold code generation      | ✅     | 210/210  |
-| SC-1.2 Weil primary generation   | ✅     | 210/210  |
-| SC-1.3 Weil tertiary generation  | ✅     | 210/210  |
-| SC-1.6 Table 11 node assignments | ✅     | 60/60    |
-| SC-1.7 Performance (< 1s/PRN)    | ✅     | 3/3      |
-| FEC-2.1 BCH(51,8) encoder        | ✅     | 10/10    |
-| FEC-2.3 LDPC rate-1/2 encoder    | ✅     | 12/12    |
-| FEC-2.5 CRC-24Q                  | ✅     | 4/4      |
-| FEC-2.7 Block interleaver        | ✅     | 4/4      |
-| SG-4.3 BPSK(1) I/Q mapping       | ✅     | verified |
+| Requirement                          | Status | Tests    |
+| ------------------------------------ | ------ | -------- |
+| SC-1.1 Gold code generation          | PASS   | 210/210  |
+| SC-1.2 Weil primary generation       | PASS   | 210/210  |
+| SC-1.3 Weil tertiary generation      | PASS   | 210/210  |
+| SC-1.6 Table 11 node assignments     | PASS   | 60/60    |
+| SC-1.7 Performance (< 1s/PRN)        | PASS   | 3/3      |
+| FEC-2.1 BCH(51,8) encoder            | PASS   | 10/10    |
+| FEC-2.3 LDPC rate-1/2 encoder        | PASS   | 12/12    |
+| FEC-2.5 CRC-24Q                      | PASS   | 4/4      |
+| FEC-2.7 Block interleaver            | PASS   | 4/4      |
+| FM-2.5 Frame assembly (Figure 9)     | PASS   | 10/10    |
+| FM-2.6 Subframe bit allocations      | PASS   | 8/8      |
+| FM-2.7 Frame timing (12 seconds)     | PASS   | verified |
+| SG-4.3 BPSK(1) I/Q mapping           | PASS   | verified |
 
 ---
 
@@ -209,10 +238,12 @@ Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) compl
 - [x] Gateway 1 — Spreading code generation (210 PRNs, all types)
 - [x] Gateway 1C — Table 11 interim code validation
 - [x] Gateway 2 — FEC encoding (BCH, CRC-24, LDPC, interleaver)
+- [x] Gateway 3 — Frame assembly (sync + SB1 + interleaved SB2-4)
 - [x] Python bridge layer (ctypes + C API)
 - [x] BPSK(1) I/Q signal generation
-- [ ] Gateway 3 — Frame assembly (sync + SB1 + interleaved SB2-4)
-- [ ] End-to-end pipeline (data → FEC → frame → I/Q)
+- [ ] Gateway 4 — Baseband signal generation (BPSK modulation, I/Q samples)
+- [ ] Gateways 5-6 — Decoding pipeline (frame sync, decoders, message parsing)
+- [ ] End-to-end pipeline validation
 
 ---
 
