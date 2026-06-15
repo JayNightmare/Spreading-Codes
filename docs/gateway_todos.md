@@ -27,9 +27,9 @@ Last updated: 2026-04-27 (Session 3 - Build Recovery & Compilation Fixed)
 - **Gold code polynomial constants**: Current implementation initializes LFSR with 11-bit register length but tap feedback masks may not align with spec. Header comments reference 11-bit polynomials (`g1(x) = x^11 + x^2 + 1`, `g2(x) = x^11 + x^8 + x^5 + x^2 + 1`), need to validate feedback mask hex values against Appendix C. **Current output**: PRN 1 first 20 chips are `1 1 0 1 0 1 1 1 0 1 0 0 1 1 1 1 0 1 0 0` (needs spot-check against reference `0x5D6430`).
 
 - **Weil code implementation incomplete**: Structures and arrays now defined (Appendix D/E), but generator functions still only compute Legendre sequences. Need to:
-     - Implement W(t;k) = L(t) XOR L((t+k) mod prime) with PRN-specific k from Appendix D/E tables.
-     - Add insertion_index_p handling for primary codes (expansion block placement).
-     - Validate tertiary code construction with appended zero.
+  - Implement W(t;k) = L(t) XOR L((t+k) mod prime) with PRN-specific k from Appendix D/E tables.
+  - Add insertion_index_p handling for primary codes (expansion block placement).
+  - Validate tertiary code construction with appended zero.
 
 - **AFS-Q assembly is concatenation placeholder**: Current generates 11,730 chips by simple concatenation. Spec requires modulo-2 XOR interleaving of primary, expansion, secondary, and tertiary components per technical guide. **Current output**: 11,730 chips (wrong structure, needs proper XOR assembly).
 
@@ -55,19 +55,19 @@ Last updated: 2026-04-27 (Session 3 - Build Recovery & Compilation Fixed)
 - Validate secondary code mappings against Table 10 (now correct: S1=[0,1,1,1], S3=[1,1,0,1]).
 
 - Implement proper Weil code generation:
-     - Update `generate_weil_primary(prn)` to use `WEIL_PRIMARY_PARAMS[prn-1].weil_index_k` and apply XOR shift.
-     - Update `generate_weil_tertiary(prn)` to use `WEIL_TERTIARY_PARAMS[prn-1].weil_index_k` and append zero.
-     - Add expansion block insertion at `insertion_index_p` for primary codes.
+  - Update `generate_weil_primary(prn)` to use `WEIL_PRIMARY_PARAMS[prn-1].weil_index_k` and apply XOR shift.
+  - Update `generate_weil_tertiary(prn)` to use `WEIL_TERTIARY_PARAMS[prn-1].weil_index_k` and append zero.
+  - Add expansion block insertion at `insertion_index_p` for primary codes.
 
 - Rewrite `generate_afs_q()` to use modulo-2 XOR instead of concatenation:
-     - Interleave primary (10,223 chips), secondary (repeated 4x), expansion (7 chips), tertiary (1,500 chips).
-     - Final length should be spec-compliant (currently 11,730 from concat; XOR interleaving may differ).
+  - Interleave primary (10,223 chips), secondary (repeated 4x), expansion (7 chips), tertiary (1,500 chips).
+  - Final length should be spec-compliant (currently 11,730 from concat; XOR interleaving may differ).
 
 - Add unit tests to verify:
-     - PRN bounds (1-210) and error handling for invalid PRN.
-     - Deterministic code repeatability (same PRN always produces identical output).
-     - Sequence lengths per spec.
-     - Known-reference spot checks against specification vectors (using hex reference tables).
+  - PRN bounds (1-210) and error handling for invalid PRN.
+  - Deterministic code repeatability (same PRN always produces identical output).
+  - Sequence lengths per spec.
+  - Known-reference spot checks against specification vectors (using hex reference tables).
 
 **Phase 1C: Binary I/Q File Generation** (Gate exit requirement)
 
@@ -105,3 +105,9 @@ Last updated: 2026-04-27 (Session 3 - Build Recovery & Compilation Fixed)
 3. **AFS-Q assembly**: Currently concatenates; needs modulo-2 XOR per spec signal composition equations.
 
 **If team defines Gateway 2+ scope**: Add new sections below using same three-block format (Completed, Backlog, Required Todos).
+
+---
+
+> [!NOTE] GATEWAY 2
+
+- [ ] Combine subframe builders
