@@ -43,10 +43,10 @@ constexpr int kFrameDurationSec = 12;
 constexpr float kBpskLevelLogic0 = 1.0f;
 constexpr float kBpskLevelLogic1 = -1.0f;
 
-// Default I/Q sample rate: the AFS-Q chip rate, giving one sample per Q chip
-// and five samples per I chip. Callers may request any positive integer
-// multiple of the AFS-Q chip rate (see IqConfig).
-constexpr int kDefaultSampleRateHz = kAfsQChipRateHz;
+// Default I/Q sample rate: the AFS-I chip rate, matching the LSIS-AFS
+// workshop interop contract (encode --format iq32 --rate 1023000).
+// Callers may request any positive integer multiple of this rate.
+constexpr int kDefaultSampleRateHz = kAfsIChipRateHz;
 
 }  // namespace lunanet::gateway4
 

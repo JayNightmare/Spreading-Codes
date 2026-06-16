@@ -1076,17 +1076,19 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
         "Got " + std::to_string(afs_q.size()) + ", expected " + std::to_string(q_chips),
         reporter);
 
+    // ── Default rate (AFS-I chip rate = 1.023 MHz, workshop interop default) ──
     {
-        g4::IqConfig config;  // default Fs = AFS-Q chip rate (5.115 MHz)
+        g4::IqConfig config;  // default Fs = AFS-I chip rate (1.023 MHz)
         error.clear();
         const auto gen_start = Clock::now();
         const auto signal = g4::GenerateIq(afs_i, afs_q, config, &error);
         const double gen_ms =
             std::chrono::duration<double, std::milli>(Clock::now() - gen_start).count();
 
+        // At 1.023 MHz: 1 sample per AFS-I chip → i_chips samples.
         lunanet::testing::ValidateConditionTimed(
-            kIq, "I and Q sample counts = 20460 (1 sample/Q-chip)",
-            signal.i.size() == q_chips && signal.q.size() == q_chips,
+            kIq, "Default rate: sample count = AFS-I chips (" + std::to_string(i_chips) + ")",
+            signal.i.size() == i_chips && signal.q.size() == i_chips,
             "Got I=" + std::to_string(signal.i.size()) +
             " Q=" + std::to_string(signal.q.size()) +
             (error.empty() ? "" : ": " + error), gen_ms, reporter);
@@ -1098,22 +1100,25 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
             kIq, "All I/Q samples are ±1.0", all_pm1,
             "Found a sample outside {-1.0, +1.0}", reporter);
 
-        // Default Fs gives 5 I-samples per AFS-I chip and 1 Q-sample per AFS-Q chip.
-        bool i_hold_ok = signal.i.size() == q_chips;
+        // At 1.023 MHz: 1 sample per AFS-I chip, so I[n] = BPSK(afs_i[n]).
+        bool i_hold_ok = signal.i.size() == i_chips;
         for (size_t n = 0; n < signal.i.size() && i_hold_ok; ++n) {
-            if (signal.i[n] != g4::BpskMap(afs_i[n / g4::kQOverIChipRatio])) i_hold_ok = false;
+            if (signal.i[n] != g4::BpskMap(afs_i[n])) i_hold_ok = false;
         }
         lunanet::testing::ValidateCondition(
-            kIq, "AFS-I held 5 samples/chip (code/data sync)", i_hold_ok,
-            "AFS-I zero-order-hold alignment incorrect", reporter);
+            kIq, "AFS-I 1:1 sample/chip at default rate", i_hold_ok,
+            "AFS-I sample alignment incorrect at 1.023 MHz", reporter);
 
-        bool q_align_ok = signal.q.size() == q_chips;
+        // At 1.023 MHz: Q is decimated by 5. Q[n] maps to chip floor(n * 5 / 1).
+        // Each output sample picks the Q chip at that time instant.
+        bool q_align_ok = signal.q.size() == i_chips;
         for (size_t n = 0; n < signal.q.size() && q_align_ok; ++n) {
-            if (signal.q[n] != g4::BpskMap(afs_q[n])) q_align_ok = false;
+            const size_t q_idx = n * g4::kQOverIChipRatio;
+            if (signal.q[n] != g4::BpskMap(afs_q[q_idx])) q_align_ok = false;
         }
         lunanet::testing::ValidateCondition(
-            kIq, "AFS-Q sample-per-chip alignment", q_align_ok,
-            "AFS-Q sample alignment incorrect", reporter);
+            kIq, "AFS-Q decimated correctly at default rate", q_align_ok,
+            "AFS-Q sample alignment incorrect at 1.023 MHz", reporter);
 
         // Export formats on the short segment.
         const auto tmp = std::filesystem::temp_directory_path();
@@ -1127,7 +1132,7 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
         if (bin_ok) {
             std::error_code ec;
             const auto bytes = std::filesystem::file_size(bin_path, ec);
-            const uintmax_t expected_bytes = static_cast<uintmax_t>(q_chips) * 2u * sizeof(float);
+            const uintmax_t expected_bytes = static_cast<uintmax_t>(i_chips) * 2u * sizeof(float);
             lunanet::testing::ValidateCondition(
                 kExport, "Binary size = samples × 2 × 4 bytes",
                 !ec && bytes == expected_bytes,
@@ -1141,21 +1146,34 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
             g4::ExportIqCsv(signal, csv_path, &error), error, reporter);
     }
 
-    // ── Configurable sample rate ─────────────────────────────────────────
+    // ── AFS-Q chip rate (5.115 MHz): full-resolution, 1 sample per Q chip ──
+    {
+        g4::IqConfig q_rate;
+        q_rate.sample_rate_hz = g4::kAfsQChipRateHz;  // 5.115 MHz
+        error.clear();
+        const auto signal_q = g4::GenerateIq(afs_i, afs_q, q_rate, &error);
+        lunanet::testing::ValidateCondition(
+            kIq, "AFS-Q rate: sample count = Q chips (" + std::to_string(q_chips) + ")",
+            signal_q.i.size() == q_chips && signal_q.sample_rate_hz == g4::kAfsQChipRateHz,
+            "Got " + std::to_string(signal_q.i.size()) +
+            (error.empty() ? "" : ": " + error), reporter);
+    }
+
+    // ── Configurable oversample (2× AFS-Q rate = 10.23 MHz) ─────────────
     {
         g4::IqConfig oversampled;
         oversampled.sample_rate_hz = 2 * g4::kAfsQChipRateHz;  // 10.23 MHz
         error.clear();
         const auto signal2 = g4::GenerateIq(afs_i, afs_q, oversampled, &error);
         lunanet::testing::ValidateCondition(
-            kIq, "Oversample ×2 doubles sample count",
+            kIq, "Oversample ×2 doubles Q-rate sample count",
             signal2.i.size() == q_chips * 2 && signal2.sample_rate_hz == 2 * g4::kAfsQChipRateHz,
             "Got " + std::to_string(signal2.i.size()) +
             (error.empty() ? "" : ": " + error), reporter);
 
-        // A rate that is not a multiple of the AFS-Q chip rate must be rejected.
+        // A rate that is not a multiple of the AFS-I chip rate must be rejected.
         g4::IqConfig invalid;
-        invalid.sample_rate_hz = g4::kAfsIChipRateHz;  // 1.023 MHz (undersamples Q)
+        invalid.sample_rate_hz = 1000000;  // 1 MHz — not a multiple of 1.023 MHz
         std::string err2;
         const auto bad = g4::GenerateIq(afs_i, afs_q, invalid, &err2);
         lunanet::testing::ValidateCondition(

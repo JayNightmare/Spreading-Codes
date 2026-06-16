@@ -25,6 +25,13 @@ bool ExportFrameCsv(const std::vector<uint8_t>& frame,
 // Returns empty string on error.
 std::string ExportFrameHex(const std::vector<uint8_t>& frame);
 
+// Exports frame symbols as raw bytes, one byte per symbol (0x00 or 0x01).
+// Output is exactly frame.size() bytes — 6000 for a standard frame.
+// This matches the workshop interop CI contract ("exactly 6000 bytes").
+bool ExportFrameRaw(const std::vector<uint8_t>& frame,
+                    const std::string& output_path,
+                    std::string* error_message = nullptr);
+
 }  // namespace lunanet::gateway3
 
 #endif  // LUNANET_GATEWAY3_FRAME_EXPORTER_H

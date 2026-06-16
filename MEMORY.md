@@ -2,11 +2,14 @@
 
 ## Current State
 
-- **Validation**: All PRN codes (Gold, Weil Primary, Weil Tertiary) are fully passing 210/210 compliance with Annex3 validation vectors. Table 11 interim code assignments (12 LNSP nodes) validated with 60/60 tests covering secondary code cycling, PRN identity, and tiered AFS-Q construction.
-- **Test Framework**: Modular test engine (`codes/testing/`) with structured reporting - outputs console summary, markdown report, and JUnit XML for CI integration. 735 tests across 10 suites (Smoke, Annex3/Gold, Annex3/Weil Primary, Annex3/Weil Tertiary, Table11/Assignments, Gateway2/BCH, Gateway2/CRC24, Gateway2/Interleaver, Gateway2/LDPC, Performance). Reports auto-generated to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}`.
+- **LSIS-AFS CLI Tool**: `goon` executable (`codes/lsis_cli.cpp`) conforming to the workshop interop CLI contract. Subcommands: `generate-codes` (210 Gold PRNs → 512-char hex), `encode --format frame` (→ 6000-byte frame.bin), `encode --format iq32` (→ interleaved float32 I/Q signal). Links all four gateway libraries.
+- **Validation**: All PRN codes (Gold, Weil Primary, Weil Tertiary) are fully passing 210/210 compliance with Annex3 validation vectors. Table 11 interim code assignments (12 LNSP nodes) validated with 60/60 tests covering secondary code cycling, PRN identity, and tiered AFS-Q construction. 794 tests across all suites.
+- **Test Framework**: Modular test engine (`codes/testing/`) with structured reporting - outputs console summary, markdown report, and JUnit XML for CI integration. 794 tests across 21 suites (Smoke, Annex3/Gold, Annex3/Weil Primary, Annex3/Weil Tertiary, Table11/Assignments, Gateway2/BCH, Gateway2/CRC24, Gateway2/Interleaver, Gateway2/LDPC, Gateway3/*, Gateway4/*, Performance). Reports auto-generated to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}`.
 - **Gateway 2 (FEC Encoding)**: Complete. BCH(51,8) encoder/decoder, CRC-24Q, LDPC rate-1/2 encoder (SB2 + SB3/SB4), and 60×98 block interleaver all implemented and tested.
+- **Gateway 3 (Frame Assembly)**: Complete. Sync pattern + SB1(BCH) + SB2/SB3/SB4(CRC+LDPC) + 60×98 interleave → 6000 symbols. Raw export (1 byte/symbol) for workshop CI.
+- **Gateway 4 (Signal Generation)**: Complete. BPSK modulation, AFS-I data spreading, I/Q baseband generation with rational sample-rate mapping. Default rate 1.023 MHz (workshop contract). Supports any integer multiple of the AFS-I chip rate.
 - **Python Bridge**: Zero-dependency ctypes wrapper (`codes/python/lunanet.py`) over C-linkage DLL API (`codes/c_api.h`). Exposes all code generators, BCH encoding, and CRC-24 to Python. Smoke-tested.
-- **I/Q Generation**: BPSK(1) baseband signal generator (`codes/python/iq_generator.py`) outputs binary float32 and CSV I/Q files. Mapping: 0→+1.0, 1→-1.0.
+- **I/Q Generation (Python)**: BPSK(1) baseband signal generator (`codes/python/iq_generator.py`) outputs binary float32 and CSV I/Q files. Mapping: 0→+1.0, 1→-1.0.
 - **Report Viewer**: Tkinter GUI (`codes/gateway1/gui/report_viewer.py`) with dark theme, color-coded pass/fail table rows, suite/status filtering, and auto-discovery of timestamped reports.
 - **Performance**: Legendre sequence caching eliminates redundant computation in Weil generators. Full PRN generation (Gold + Weil Primary + Weil Tertiary + AFS-Q) completes in < 0.5 ms per PRN - well under the SC-1.7 requirement of < 1 second.
 - **Gold Code Generator**: Fixed the `lunanet::gateway1` Gold code generators to match the Annex3 reference specification. The $G_2$ delay is applied by computationally advancing the sequence by $2047 - D_k$ relative to $G_1$, using a standard left-shifting Fibonacci LFSR algorithm.
@@ -27,6 +30,7 @@
 - `codes/c_api.h/.cpp` - C-linkage DLL shim for ctypes/FFI access.
 - `codes/python/lunanet.py` - Zero-dependency Python wrapper over the C API.
 - `codes/python/iq_generator.py` - BPSK(1) I/Q signal generator (float32 binary + CSV export).
+- `codes/lsis_cli.cpp` - Workshop CLI tool: generate-codes, encode --format frame|iq32, version.
 
 ## Active Tasks (Completed)
 
@@ -49,5 +53,6 @@
 
 ## Next Steps
 
-- Frame assembly (Gateway 3) — sync pattern + SB1 + interleaved(SB2+SB3+SB4) = 6000 symbols.
-- Full end-to-end encode pipeline: data → FEC → frame → I/Q.
+- Decoder implementation (Gateway 5): LDPC decoder, BCH decoder, frame deassembly, despread/correlator.
+- Full round-trip encode → decode pipeline for Level 3 cross-decode at future workshops.
+- Docker containerisation for the CLI tool (alternative to bare executable for GitLab CI).

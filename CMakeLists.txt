@@ -140,6 +140,23 @@ set_target_properties(test_engine PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+add_executable(goon codes/lsis_cli.cpp)
+target_link_libraries(goon PRIVATE
+    ${LIBRARY_NAME}
+    lunanet_gateway2
+    lunanet_gateway3
+    lunanet_gateway4
+)
+target_include_directories(goon PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway3
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway4
+)
+set_target_properties(goon PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
+)
+
 enable_testing()
 add_test(
     NAME gateway1_validation
@@ -169,7 +186,7 @@ add_test(
         --gateway gateway4
 )
 
-install(TARGETS ${LIBRARY_NAME}
+install(TARGETS ${LIBRARY_NAME} goon
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin

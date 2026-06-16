@@ -12,8 +12,9 @@ namespace lunanet::gateway4 {
 
 // Configuration for I/Q baseband sample generation.
 struct IqConfig {
-    // Output sample rate. Must be a positive integer multiple of the AFS-Q chip
-    // rate so both channels resample to an integer number of samples per chip.
+    // Output sample rate. Must be a positive integer multiple of the AFS-I chip
+    // rate (1,023,000 Hz). Higher rates (e.g. the AFS-Q chip rate) give one
+    // sample per Q chip; the AFS-I rate is the workshop interop default.
     int sample_rate_hz = kDefaultSampleRateHz;
 };
 

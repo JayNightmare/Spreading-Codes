@@ -9,6 +9,7 @@ navigation.
 | What You’re   | Building |     |     |     |     |     |     |
 AcompletesoftwareimplementationoftheLSIS-AFSdigitalsignalprocessingchain,including: -Spreading
 code generators (Gold, Weil, Legendre sequences) - Message encoders/decoders (BCH, LDPC, CRC)
+
 - Baseband signal generation (I/Q samples) - Navigation message parsing (frame structure, time
 | reconstruction) | - Validation |              | suite | (test vectors, | compliance | checks) |     |
 | --------------- | ------------ | ------------ | ----- | -------------- | ---------- | ------- | --- |
@@ -43,6 +44,7 @@ This competition uses a gateway-based approach to break down the complex LSIS-AF
 1
 
 • A functional capability that can be independently developed and tested
+
 | • A | tangible   | deliverable |      | with clear | success     | criteria |            |     |
 | --- | ---------- | ----------- | ---- | ---------- | ----------- | -------- | ---------- | --- |
 | • A | building   | block       | that | enables    | subsequent  | gateways |            |     |
@@ -130,9 +132,11 @@ tionbetweenencodinganddecoding-Reusablecomponentsforcommonoperations-Testfilesco
 | ￿ Learning        |     | Resources |               |     |     |     |     |
 | Understanding     |     | the       | Specification |     |     |     |     |
 Start here: 1. Read Section 1 (Introduction) of LSIS-AFS vol A 2. Review Section 2.3.5 (Spreading codes)
+
 3. Study Section 2.4 (Message format) 4. Examine Appendices C, D, E (Code tables)
 Sections to focus on(softwareimplementation): -Section2.3: SignalStructure(spreadingcodes,modula-
 tion) - Section 2.4: Message Format (frame structure, encoding) - Section 2.5: Navigation Message Content
+
 - Appendix C: Gold Code Initialization - Appendix D: Weil Primary Code Parameters - Appendix E: Weil
 Tertiary Code Parameters - Annex 1: LDPC Matrices - Annex 3: Reference Spreading Codes
 Sections you can skip (RF hardware, not required): - Section 2.1: RF Characteristics (carrier frequency,
@@ -191,6 +195,7 @@ code parameters - Appendix E: Weil tertiary code parameters - Table 11: Interim 
 4
 
 Generate Your Own: - Encode known data → validate decoder - Generate signals → validate synchro-
+
 | nization | - Create error | patterns |     | → validate | FEC |     |     |
 | -------- | -------------- | -------- | --- | ---------- | --- | --- | --- |
 | ￿ Quick  | Start          | Guide    |     |            |     |     |     |
@@ -210,6 +215,7 @@ Step 4: Begin implementation-Choosewhichgatewaytostartwith-Implementandtestincre
 | ----------- | ------- | ------------- | --- | ------------ | --- | --- | --- |
 | First Phase | Goals   |               |     |              |     |     |     |
 By end of Phase 1 (31st March 2026), you should have: - ￿ Thorough understanding of LSIS specification
+
 - ￿ System architecture designed and documented - ￿ Development environment set up - ￿ Reference data
 loaded and accessible - ￿ Testing strategy defined - ￿ Clear implementation plan for Phase 2 - ￿ Compliance
 | validation  | framework | established |     |     |     |     |     |
@@ -242,6 +248,7 @@ tions in Section 2 - Consult signal processing and coding theory references - Re
 principles
 Debugging Tips - Compare intermediate results with specification examples - Validate against reference
 data from annexes - Test components in isolation before integration - Document your debugging process
+
 | ￿ Support     | &         | Communication    |     |               |     |           |
 | ------------- | --------- | ---------------- | --- | ------------- | --- | --------- |
 | Project       | Resources |                  |     |               |     |           |
@@ -252,6 +259,7 @@ Reference Data - LDPC matrices: Available in Annex1 - Spreading codes: Available
 | Submission | Guidelines |      |               |     |     |     |
 What to Submit 1. Complete source code with clear structure 2. Test suite with results demonstrating
 correctness3. Documentationexplainingyourdesignandusage4. Examplesdemonstratingkeyfunctionality
+
 5. Performance report showing compliance with requirements 6. Build/run instructions
 Submission Format - Any format that allows evaluation (repository, archive, etc.) - Must include clear
 instructionsforbuildingandrunning-Mustincludealldependenciesorinstructionstoobtainthem-Should

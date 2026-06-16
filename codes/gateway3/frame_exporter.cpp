@@ -88,4 +88,29 @@ std::string ExportFrameHex(const std::vector<uint8_t>& frame) {
     return oss.str();
 }
 
+bool ExportFrameRaw(const std::vector<uint8_t>& frame,
+                    const std::string& output_path,
+                    std::string* error_message) {
+    if (frame.empty()) {
+        if (error_message) *error_message = "Frame is empty";
+        return false;
+    }
+
+    std::ofstream out(output_path, std::ios::binary);
+    if (!out) {
+        if (error_message) *error_message = "Failed to open: " + output_path;
+        return false;
+    }
+
+    // Write one byte per symbol — values are 0x00 or 0x01.
+    out.write(reinterpret_cast<const char*>(frame.data()),
+              static_cast<std::streamsize>(frame.size()));
+    if (!out) {
+        if (error_message) *error_message = "Write failed: " + output_path;
+        return false;
+    }
+
+    return true;
+}
+
 }  // namespace lunanet::gateway3
