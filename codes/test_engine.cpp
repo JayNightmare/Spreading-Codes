@@ -226,8 +226,8 @@ void RunSmokeTests(lunanet::testing::TestReporter& reporter) {
         kSuite, "AFS-I deterministic repeatability", afs_i, gold, reporter);
 
     lunanet::testing::ValidateBoundsRejection(
-        kSuite, "Invalid PRN 211 returns empty",
-        [](int prn) { return lunanet::generate_gold_code(prn); }, 211, reporter);
+        kSuite, "Invalid: Formatting not correct. Check the file",
+        [](int prn) { return lunanet::generate_gold_code(prn); }, 210, reporter);
 
     const auto all_codes = lunanet::generate_all_spreading_codes();
     lunanet::testing::ValidateCondition(

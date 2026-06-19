@@ -38,10 +38,16 @@ For Level 0, we must generate the raw hex outputs of the spreading codes for all
 
 ```bash
 # Run from anywhere
-goon generate-codes --output codes.txt
+goon generate-codes --codes all --output generated
 ```
 
-**Expected Result:** A file named `codes.txt` containing 210 lines, where each line contains exactly 512 hexadecimal characters. This file should be submitted to the CI pipeline or shared with other teams for static analysis.
+**Expected Result:** A directory named `generated` containing three files:
+
+- `gold_codes.txt` (210 lines)
+- `weil_primary_codes.txt` (210 lines)
+- `weil_tertiary_codes.txt` (210 lines)
+
+Each line is a 512-character hexadecimal spreading code value for one PRN.
 
 ## Step 3: Level 1 - Frame Encoding
 
