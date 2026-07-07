@@ -125,15 +125,88 @@ std::vector<uint8_t> ParseHexPayload(const std::string& hex) {
     return bits;
 }
 
+enum class CodeFamily {
+    Gold,
+    WeilPrimary,
+    WeilTertiary,
+    All,
+};
+
+bool ParseCodeFamily(const std::string& text, CodeFamily& out) {
+    if (text.empty() || text == "gold") {
+        out = CodeFamily::Gold;
+        return true;
+    }
+    if (text == "weil-primary" || text == "weil_primary" || text == "weil") {
+        out = CodeFamily::WeilPrimary;
+        return true;
+    }
+    if (text == "weil-tertiary" || text == "weil_tertiary" || text == "tertiary") {
+        out = CodeFamily::WeilTertiary;
+        return true;
+    }
+    if (text == "all") {
+        out = CodeFamily::All;
+        return true;
+    }
+    return false;
+}
+
+bool WriteCodeFamily(std::ostream& out_stream, CodeFamily family, std::string& error) {
+    for (int prn = 1; prn <= lunanet::MAX_PRNS; ++prn) {
+        std::vector<uint8_t> code;
+        switch (family) {
+            case CodeFamily::Gold:
+                code = lunanet::generate_gold_code(prn);
+                break;
+            case CodeFamily::WeilPrimary:
+                code = lunanet::generate_weil_primary(prn);
+                break;
+            case CodeFamily::WeilTertiary:
+                code = lunanet::generate_weil_tertiary(prn);
+                break;
+            case CodeFamily::All:
+                error = "Internal error: CodeFamily::All is not valid for WriteCodeFamily";
+                return false;
+        }
+
+        if (code.empty()) {
+            error = "Failed to generate code for PRN " + std::to_string(prn) +
+                    ": " + lunanet::get_last_error();
+            return false;
+        }
+
+        out_stream << lunanet::chips_to_hex(code, 0) << "\n";
+    }
+
+    return true;
+}
+
+const char* CodeFamilyFileName(CodeFamily family) {
+    switch (family) {
+        case CodeFamily::Gold:
+            return "gold_codes.txt";
+        case CodeFamily::WeilPrimary:
+            return "weil_primary_codes.txt";
+        case CodeFamily::WeilTertiary:
+            return "weil_tertiary_codes.txt";
+        case CodeFamily::All:
+            return "all_codes.txt";
+    }
+    return "codes.txt";
+}
+
 // ── Subcommand: generate-codes ──────────────────────────────────────────────
 
 int CmdGenerateCodes(Args& a) {
     std::string output;
     std::string config;
+    std::string codes = "gold";
 
     while (HasNext(a)) {
         if (GetString(a, "--output", output)) continue;
         if (GetString(a, "--config", config)) continue;
+        if (GetString(a, "--codes", codes)) continue;
         std::cerr << "error: unknown option: " << Peek(a) << "\n";
         return 1;
     }
@@ -144,6 +217,60 @@ int CmdGenerateCodes(Args& a) {
     if (!lunanet::load_spreading_code_config(config, &err)) {
         std::cerr << "error: failed to load config: " << err << "\n";
         return 1;
+    }
+
+    CodeFamily family;
+    if (!ParseCodeFamily(codes, family)) {
+        std::cerr << "error: invalid --codes value: " << codes << "\n"
+                  << "       expected one of: gold, weil-primary, weil-tertiary, all\n";
+        return 1;
+    }
+
+    if (family == CodeFamily::All) {
+        namespace fs = std::filesystem;
+        const fs::path output_dir = output.empty() ? fs::path(".") : fs::path(output);
+
+        std::error_code fs_error;
+        bool dir_exists = fs::exists(output_dir, fs_error);
+        if (fs_error) {
+            std::cerr << "error: cannot check output path: "
+                      << output_dir.string() << ": " << fs_error.message() << "\n";
+            return 1;
+        }
+        if (dir_exists) {
+            bool is_dir = fs::is_directory(output_dir, fs_error);
+            if (fs_error) {
+                std::cerr << "error: cannot check output path: "
+                          << output_dir.string() << ": " << fs_error.message() << "\n";
+                return 1;
+            }
+            if (!is_dir) {
+                std::cerr << "error: for --codes all, --output must be a directory: "
+                          << output_dir.string() << "\n";
+                return 1;
+            }
+        } else {
+            fs::create_directories(output_dir, fs_error);
+            if (fs_error) {
+                std::cerr << "error: cannot create output directory: "
+                          << output_dir.string() << ": " << fs_error.message() << "\n";
+                return 1;
+            }
+        }
+
+        for (CodeFamily current_family : {CodeFamily::Gold, CodeFamily::WeilPrimary, CodeFamily::WeilTertiary}) {
+            const fs::path file_path = output_dir / CodeFamilyFileName(current_family);
+            std::ofstream file_stream(file_path);
+            if (!file_stream) {
+                std::cerr << "error: cannot open output file: " << file_path.string() << "\n";
+                return 1;
+            }
+            if (!WriteCodeFamily(file_stream, current_family, err)) {
+                std::cerr << "error: " << err << "\n";
+                return 1;
+            }
+        }
+        return 0;
     }
 
     std::ostream* out_stream = &std::cout;
@@ -157,16 +284,9 @@ int CmdGenerateCodes(Args& a) {
         out_stream = &file_stream;
     }
 
-    for (int prn = 1; prn <= lunanet::MAX_PRNS; ++prn) {
-        auto code = lunanet::generate_gold_code(prn);
-        if (code.empty()) {
-            std::cerr << "error: failed to generate Gold code for PRN " << prn
-                      << ": " << lunanet::get_last_error() << "\n";
-            return 1;
-        }
-        // Workshop format: 512 hex chars per line (2048 bits, zero-padded from 2046).
-        std::string hex = lunanet::chips_to_hex(code, 0);
-        *out_stream << hex << "\n";
+    if (!WriteCodeFamily(*out_stream, family, err)) {
+        std::cerr << "error: " << err << "\n";
+        return 1;
     }
 
     return 0;
@@ -188,6 +308,7 @@ int CmdEncode(Args& a) {
     int rate = lunanet::gateway4::kAfsIChipRateHz;  // default: 1.023 MHz
     std::string ced_hex;
     std::string output;
+    std::string codes;
     std::string config;
     std::string csv_dir;
 
@@ -201,6 +322,14 @@ int CmdEncode(Args& a) {
         if (GetInt(a, "--rate", rate)) continue;
         if (GetString(a, "--ced", ced_hex)) continue;
         if (GetString(a, "--output", output)) continue;
+        if (GetString(a, "--codes", codes)) {
+            if (codes != "gold") {
+                std::cerr << "error: encode only supports Gold codes; got: " << codes << "\n";
+                return 1;
+            }
+            // gold is the only supported value; accept and continue
+            continue;
+        }
         if (GetString(a, "--config", config)) continue;
         if (GetString(a, "--csv-dir", csv_dir)) continue;
         std::cerr << "error: unknown option: " << Peek(a) << "\n";
@@ -359,11 +488,13 @@ void PrintUsage(const char* prog) {
         << "LSIS-AFS CLI tool v" << lunanet::get_version() << "\n\n"
         << "usage: " << prog << " <command> [options]\n\n"
         << "commands:\n"
-        << "  generate-codes  Generate all 210 Gold primary spreading codes\n"
+        << "  generate-codes  Generate 210 spreading codes (Gold/Weil/Tertiary)\n"
         << "  encode          Encode navigation frame / generate I/Q signal\n"
         << "  version         Print version\n\n"
         << "examples:\n"
         << "  " << prog << " generate-codes --output codes.txt\n"
+        << "  " << prog << " generate-codes --codes gold --output gold_codes.txt\n"
+        << "  " << prog << " generate-codes --codes all  --output generated/\n"
         << "  " << prog << " encode --format frame --prn 1 --fid 0 --toi 42 --wn 100 --itow 250\n"
         << "  " << prog << " encode --format iq32  --prn 1 --fid 0 --toi 42 --wn 100 --itow 250\n";
 }

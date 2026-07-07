@@ -9,7 +9,8 @@ Your `codes.txt` has 211 lines instead of 210, and includes formatting from a Py
 ### Problem
 
 Your file looks like:
-```
+
+```txt
 GoldCode2046 = [ \
 "17590C193EB85C40...",
 "130BFFDA4199FCFE...",
@@ -20,7 +21,8 @@ GoldCode2046 = [ \
 ### Required format
 
 Plain text, 210 lines, no headers, no quotes, no array syntax:
-```
+
+```txt
 17590C193EB85C40632F5B9919BEEB8D...
 130BFFDA4199FCFE84D51D04CC16A7A2...
 ...
@@ -40,8 +42,9 @@ Strip the header line, remove all quote characters, commas, brackets, and backsl
 
 Your frame encodes **TOI=62** instead of the required **TOI=42**.
 
-### Expected parameters (from onboarding guide):
-```
+### Expected parameters (from onboarding guide)
+
+```txt
 PRN=1, FID=0, TOI=42, WN=100, ITOW=250
 ```
 
@@ -62,7 +65,8 @@ Same issue — your signal decodes to TOI=58 (possibly a different run than the 
 ### Fix
 
 Regenerate with the canonical parameters:
-```
+
+```txt
 --prn 1 --fid 0 --toi 42 --wn 100 --itow 250 --format iq32 --rate 1023000
 ```
 
