@@ -104,6 +104,8 @@ Spreading-Codes/
 
 ## Build
 
+For platform-specific reproducible build and validation commands (Windows + Linux), see `Reproduce.md`.
+
 **Requirements:** CMake 3.16+, C++17 compiler (MSVC 2019+, GCC 9+, Clang 10+).
 
 ```bash
@@ -154,6 +156,9 @@ Run only one gateway validation scope:
 # Gateway 4 only
 ./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway4
 ```
+
+Gateway 4 validation now includes an **EndToEnd/Pipeline** integration suite that runs:
+frame assembly (Gateway 3) → AFS-I modulation → AFS-Q generation → I/Q generation → IQ32 export checks.
 
 ```text
 Smoke reference validation:            PASS (12/12)
@@ -260,7 +265,7 @@ Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) compl
 - [x] BPSK(1) I/Q signal generation
 - [x] Gateway 4 - Baseband signal generation (BPSK modulation, I/Q samples)
 - [ ] Gateways 5-6 - Decoding pipeline (frame sync, decoders, message parsing)
-- [ ] End-to-end pipeline validation
+- [x] End-to-end pipeline validation
 
 ---
 

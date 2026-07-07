@@ -1,11 +1,14 @@
 # Changelog
 
 ## Unreleased
+
 ### Added
+
 - **LSIS-AFS CLI Tool**: New `goon` executable (`codes/lsis_cli.cpp`) conforming to the workshop interop CLI contract. Subcommands: `generate-codes` (210 Gold PRNs → hex), `encode --format frame` (data → 6000-byte frame), `encode --format iq32` (full encode → interleaved float32 I/Q signal), `version`.
 - **Frame Raw Export**: `ExportFrameRaw()` in `frame_exporter` writes one byte per symbol (0x00/0x01) matching the workshop CI `frame.bin` format (6000 bytes).
 
 ### Changed
+
 - **I/Q Sample Rate Relaxed**: `GenerateIq` now accepts any sample rate that is a positive integer multiple of the AFS-I chip rate (1,023,000 Hz) instead of requiring a multiple of the AFS-Q rate (5,115,000 Hz). Enables the workshop's `--rate 1023000` contract. Rational chip-index mapping used for both channels.
 - **Default Sample Rate**: Changed from 5.115 MHz (AFS-Q) to 1.023 MHz (AFS-I) to match the workshop interop convention.
 
@@ -26,5 +29,6 @@
 - **Legendre Caching**: Thread-safe module-level `LegendreCache` in `weil_code_generator.cpp` eliminates ~420 redundant Legendre sequence computations per 210-PRN batch. Public `ClearLegendreCache()` API for explicit memory management.
 
 ### Fixed
+
 - **Gold Code Validation**: Corrected LFSR G2 initialization by computationally advancing the sequence `2047 - D_k` steps to correctly realize the telecommunications mathematical delay $G_2(t - D_k)$. LFSR now perfectly matches Annex3 test vectors for all 210 PRNs.
 - **Generator Alignment**: Resolved mathematical dissonance by restoring the left-shifting Fibonacci implementation that correctly aligns with the characteristic polynomial specification.

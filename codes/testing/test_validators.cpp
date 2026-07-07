@@ -3,11 +3,39 @@
 #include "spreading_codes.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 
 namespace lunanet::testing {
 
 namespace {
+
+std::vector<uint8_t> HexToVectorKeepLeading(const std::string& hex, size_t num_chips) {
+    std::vector<uint8_t> chips;
+    chips.reserve(hex.size() * 4U);
+
+    for (const char ch : hex) {
+        if (std::isspace(static_cast<unsigned char>(ch)) != 0) {
+            continue;
+        }
+
+        int value = -1;
+        if (ch >= '0' && ch <= '9') value = ch - '0';
+        else if (ch >= 'A' && ch <= 'F') value = 10 + (ch - 'A');
+        else if (ch >= 'a' && ch <= 'f') value = 10 + (ch - 'a');
+        if (value < 0) continue;
+
+        for (int bit = 3; bit >= 0; --bit) {
+            chips.push_back(static_cast<uint8_t>((value >> bit) & 1));
+        }
+    }
+
+    if (num_chips > 0 && chips.size() > num_chips) {
+        chips.resize(num_chips);
+    }
+
+    return chips;
+}
 
 size_t FirstMismatchIndex(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
     const size_t limit = std::min(a.size(), b.size());
@@ -33,8 +61,10 @@ void ValidateAnnex3Suite(
         using Clock = std::chrono::high_resolution_clock;
         const auto start = Clock::now();
 
-        const std::vector<uint8_t> expected =
-            lunanet::hex_to_vector(reference_hex[prn - 1], expected_chips);
+        const bool keep_leading_bits = (suite_label == "Annex3/Gold");
+        const std::vector<uint8_t> expected = keep_leading_bits
+            ? HexToVectorKeepLeading(reference_hex[prn - 1], expected_chips)
+            : lunanet::hex_to_vector(reference_hex[prn - 1], expected_chips);
         const std::vector<uint8_t> actual = generator(prn);
 
         const double elapsed_ms =

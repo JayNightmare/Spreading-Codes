@@ -1001,7 +1001,8 @@ void RunGateway3Tests(
     }
 }
 
-void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
+void RunGateway4Tests(const std::filesystem::path& repo_root,
+                      lunanet::testing::TestReporter& reporter) {
     namespace g4 = lunanet::gateway4;
 
     const std::string kBpsk   = "Gateway4/BPSK";
@@ -1010,6 +1011,7 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
     const std::string kSync   = "Gateway4/Sync";
     const std::string kExport = "Gateway4/Export";
     const std::string kPerf   = "Gateway4/Performance";
+    const std::string kE2e    = "EndToEnd/Pipeline";
 
     using Clock = std::chrono::high_resolution_clock;
     constexpr int kPrn = 1;
@@ -1212,6 +1214,106 @@ void RunGateway4Tests(lunanet::testing::TestReporter& reporter) {
         afs_q_frame_chips == static_cast<long>(g4::kAfsQChipRateHz) * g4::kFrameDurationSec &&
             afs_q_frame_chips == g4::kAfsQTieredChips,
         "Got " + std::to_string(afs_q_frame_chips) + " chips", reporter);
+
+    // ── End-to-end integration: Gateway3 frame → Gateway4 I/Q export ─────
+    {
+        namespace g3 = lunanet::gateway3;
+        std::string e2e_error;
+        const std::filesystem::path csv_dir = repo_root / "Validation" / "annex3" / "csv";
+
+        g3::FrameMatrices matrices;
+        const bool matrices_loaded = g3::LoadFrameMatrices(csv_dir.string(), &matrices, &e2e_error);
+        lunanet::testing::ValidateCondition(
+            kE2e, "Load frame LDPC matrices", matrices_loaded,
+            e2e_error, reporter);
+
+        if (matrices_loaded) {
+            g3::FrameInput input;
+            input.fid = 0;
+            input.toi = 1;
+            input.sb2.wn = 100;
+            input.sb2.itow = 250;
+            input.sb2.toi = 1;
+            input.sb3.type = 1;
+            input.sb4.type = 2;
+
+            e2e_error.clear();
+            const auto frame = g3::AssembleFrame(input, matrices, &e2e_error);
+            lunanet::testing::ValidateCondition(
+                kE2e, "Assemble full frame (6000 symbols)",
+                static_cast<int>(frame.size()) == g3::kFrameSymbols,
+                "Got " + std::to_string(frame.size()) +
+                (e2e_error.empty() ? "" : ": " + e2e_error), reporter);
+
+            if (static_cast<int>(frame.size()) == g3::kFrameSymbols) {
+                const auto gold = lunanet::generate_gold_code(kPrn);
+                lunanet::testing::ValidateCondition(
+                    kE2e, "Generate PRN Gold code for AFS-I modulation",
+                    static_cast<int>(gold.size()) == g4::kAfsIPrimaryChips,
+                    "Got " + std::to_string(gold.size()), reporter);
+
+                e2e_error.clear();
+                const auto afs_i_full = g4::ModulateAfsIData(gold, frame, &e2e_error);
+                const size_t expected_i_chips = frame.size() * static_cast<size_t>(g4::kAfsIPrimaryChips);
+                lunanet::testing::ValidateCondition(
+                    kE2e, "AFS-I chips = frame symbols × 2046",
+                    afs_i_full.size() == expected_i_chips,
+                    "Got " + std::to_string(afs_i_full.size()) +
+                    ", expected " + std::to_string(expected_i_chips) +
+                    (e2e_error.empty() ? "" : ": " + e2e_error), reporter);
+
+                if (afs_i_full.size() == expected_i_chips) {
+                    const size_t expected_q_chips =
+                        afs_i_full.size() * static_cast<size_t>(g4::kQOverIChipRatio);
+                    const auto afs_q_full = lunanet::generate_afs_q(kPrn, expected_q_chips);
+                    lunanet::testing::ValidateCondition(
+                        kE2e, "AFS-Q chips = 5 × AFS-I chips",
+                        afs_q_full.size() == expected_q_chips,
+                        "Got " + std::to_string(afs_q_full.size()) +
+                        ", expected " + std::to_string(expected_q_chips), reporter);
+
+                    if (afs_q_full.size() == expected_q_chips) {
+                        g4::IqConfig e2e_cfg;
+                        e2e_cfg.sample_rate_hz = g4::kDefaultSampleRateHz;
+                        e2e_error.clear();
+                        const auto signal_full =
+                            g4::GenerateIq(afs_i_full, afs_q_full, e2e_cfg, &e2e_error);
+
+                        lunanet::testing::ValidateCondition(
+                            kE2e, "Generate end-to-end I/Q at 1.023 MHz",
+                            signal_full.i.size() == expected_i_chips &&
+                                signal_full.q.size() == expected_i_chips,
+                            "I=" + std::to_string(signal_full.i.size()) +
+                            " Q=" + std::to_string(signal_full.q.size()) +
+                            (e2e_error.empty() ? "" : ": " + e2e_error), reporter);
+
+                        if (!signal_full.i.empty() && signal_full.i.size() == signal_full.q.size()) {
+                            const auto tmp = std::filesystem::temp_directory_path();
+                            const auto bin_path = (tmp / "lunanet_e2e_signal.iq32").string();
+
+                            e2e_error.clear();
+                            const bool wrote = g4::ExportIqBinary(signal_full, bin_path, &e2e_error);
+                            lunanet::testing::ValidateCondition(
+                                kE2e, "Export end-to-end interleaved float32 IQ", wrote,
+                                e2e_error, reporter);
+
+                            if (wrote) {
+                                std::error_code ec;
+                                const auto bytes = std::filesystem::file_size(bin_path, ec);
+                                const uintmax_t expected_bytes =
+                                    static_cast<uintmax_t>(signal_full.i.size()) * 2u * sizeof(float);
+                                lunanet::testing::ValidateCondition(
+                                    kE2e, "E2E IQ binary size = samples × 2 × 4 bytes",
+                                    !ec && bytes == expected_bytes,
+                                    "Got " + std::to_string(bytes) +
+                                    ", expected " + std::to_string(expected_bytes), reporter);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 }  // namespace
@@ -1284,7 +1386,7 @@ int main(int argc, char** argv) {
     }
 
     if (run_gateway4) {
-        RunGateway4Tests(reporter);
+        RunGateway4Tests(repo_root, reporter);
     }
 
     reporter.PrintSummary(std::cout);
