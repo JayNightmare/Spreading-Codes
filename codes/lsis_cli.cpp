@@ -327,6 +327,7 @@ int CmdEncode(Args& a) {
                 std::cerr << "error: encode only supports Gold codes; got: " << codes << "\n";
                 return 1;
             }
+            // gold is the only supported value; accept and continue
             continue;
         }
         if (GetString(a, "--config", config)) continue;
