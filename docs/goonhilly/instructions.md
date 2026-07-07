@@ -47,7 +47,7 @@ goon generate-codes --codes all --output generated
 - `weil_primary_codes.txt` (210 lines)
 - `weil_tertiary_codes.txt` (210 lines)
 
-Each line is a 512-character hexadecimal spreading code value for one PRN.
+Each line is an uppercase hexadecimal spreading code value for one PRN (line length depends on family: Gold=512 hex chars, Weil Primary=2558, Weil Tertiary=375).
 
 ## Step 3: Level 1 - Frame Encoding
 
