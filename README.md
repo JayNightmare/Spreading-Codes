@@ -8,36 +8,44 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 
 ## Features
 
-### Gateway 1 — Spreading Code Generation
+### Gateway 1 - Spreading Code Generation
 
-- **Gold Code Generator** — 11-stage Fibonacci LFSR pair (G1/G2), 2046-chip sequences for 210 PRNs. Validated against Annex 3 reference vectors.
-- **Weil Primary Code Generator** — Legendre-sequence-based Weil construction over GF(10223) with 7-bit insertion expansion to 10230 chips.
-- **Weil Tertiary Code Generator** — Weil construction over GF(1499) producing 1500-chip tertiary codes.
-- **Tiered AFS-Q Constructor** — Three-tier modular code: primary ⊕ secondary ⊕ tertiary per LSIS §2.3.
-- **Table 11 Node Assignments** — 12 LNSP interim test node configurations with secondary code cycling (S0→S3).
+- **Gold Code Generator** - 11-stage Fibonacci LFSR pair (G1/G2), 2046-chip sequences for 210 PRNs. Validated against Annex 3 reference vectors.
+- **Weil Primary Code Generator** - Legendre-sequence-based Weil construction over GF(10223) with 7-bit insertion expansion to 10230 chips.
+- **Weil Tertiary Code Generator** - Weil construction over GF(1499) producing 1500-chip tertiary codes.
+- **Tiered AFS-Q Constructor** - Three-tier modular code: primary ⊕ secondary ⊕ tertiary per LSIS §2.3.
+- **Table 11 Node Assignments** - 12 LNSP interim test node configurations with secondary code cycling (S0→S3).
 
-### Gateway 2 — Forward Error Correction
+### Gateway 2 - Forward Error Correction
 
-- **BCH(51,8) Encoder/Decoder** — 8-stage LFSR with generator polynomial 763₈. Includes soft-decision decoder via exhaustive 256-codeword correlation.
-- **CRC-24Q** — Polynomial `0x864CFB` (GPS CNAV compatible). Compute, append, and verify.
-- **LDPC Rate-1/2 Encoder** — Dense GF(2) submatrix encoding (A, B⁻¹, C, D) for SB2 (1200→2400) and SB3/SB4 (870→1740). Matrices loaded from Annex 1 CSV files.
-- **Block Interleaver** — 60×98 write-row/read-column interleaver for SB2+SB3+SB4 concatenation (5880 symbols).
+- **BCH(51,8) Encoder/Decoder** - 8-stage LFSR with generator polynomial 763₈. Includes soft-decision decoder via exhaustive 256-codeword correlation.
+- **CRC-24Q** - Polynomial `0x864CFB` (GPS CNAV compatible). Compute, append, and verify.
+- **LDPC Rate-1/2 Encoder** - Dense GF(2) submatrix encoding (A, B⁻¹, C, D) for SB2 (1200→2400) and SB3/SB4 (870→1740). Matrices loaded from Annex 1 CSV files.
+- **Block Interleaver** - 60×98 write-row/read-column interleaver for SB2+SB3+SB4 concatenation (5880 symbols).
 
-### Gateway 3 — Navigation Message Framing
+### Gateway 3 - Navigation Message Framing
 
-- **Synchronization Pattern Generator** — 68-symbol fixed sequence (0xCCA...A) for frame boundary detection per Table 12.
-- **Subframe 1 Builder** — Frame ID and Time of Interval packed and BCH(51,8) encoded to 52 symbols.
-- **Subframe 2 Builder** — Clock and Ephemeris data (1176 bits) with CRC-24 and LDPC encoding to 2400 symbols.
-- **Subframe 3 Builder** — Variable broadcast messages with type field and payload (846 bits), CRC-24, and LDPC encoding to 1740 symbols.
-- **Subframe 4 Builder** — Network access information (846 bits) with identical encoding pipeline to SB3, producing 1740 symbols.
-- **Frame Assembler** — Concatenates all subframes with block interleaving, produces 6000-symbol complete frame (12 seconds at 500 sym/s).
-- **Frame Export** — Binary (750 bytes), CSV (6000 lines), and hexadecimal (1500 chars) output formats.
+- **Synchronization Pattern Generator** - 68-symbol fixed sequence (0xCCA...A) for frame boundary detection per Table 12.
+- **Subframe 1 Builder** - Frame ID and Time of Interval packed and BCH(51,8) encoded to 52 symbols.
+- **Subframe 2 Builder** - Clock and Ephemeris data (1176 bits) with CRC-24 and LDPC encoding to 2400 symbols.
+- **Subframe 3 Builder** - Variable broadcast messages with type field and payload (846 bits), CRC-24, and LDPC encoding to 1740 symbols.
+- **Subframe 4 Builder** - Network access information (846 bits) with identical encoding pipeline to SB3, producing 1740 symbols.
+- **Frame Assembler** - Concatenates all subframes with block interleaving, produces 6000-symbol complete frame (12 seconds at 500 sym/s).
+- **Frame Export** - Binary (750 bytes), CSV (6000 lines), and hexadecimal (1500 chars) output formats.
+
+### Gateway 4 - Baseband Signal Generation
+
+- **BPSK Modulator** - Logic-level to signal-level mapping per LSIS Table 8: `0 → +1.0`, `1 → -1.0`.
+- **AFS-I Data Modulation** - Navigation symbols XOR-modulated onto Gold primary epochs (2046 chips/symbol) per LSIS §2.3.
+- **Dual-Channel I/Q Generator** - Time-aligned AFS-I (1.023 Mchip/s) and AFS-Q (5.115 Mchip/s) baseband generation with rational chip-index mapping.
+- **Configurable Sample Rate** - Generates I/Q at any positive integer multiple of 1.023 MHz (default: 1.023 MHz workshop profile).
+- **Signal Exporters** - Interleaved float32 little-endian binary (`[I0,Q0,I1,Q1,...]`) and CSV (`index,I,Q`) output formats.
 
 ### Cross-Language Bridge
 
-- **C API** — `extern "C"` DLL shim (`c_api.h`) exporting all generators and FEC functions for FFI access.
-- **Python Bridge** — Zero-dependency ctypes wrapper (`lunanet.py`) with auto-DLL discovery and type-safe prototypes.
-- **I/Q Signal Generator** — BPSK(1) baseband generator outputting float32 binary and CSV. Mapping: `0 → +1.0`, `1 → -1.0`.
+- **C API** - `extern "C"` DLL shim (`c_api.h`) exporting all generators and FEC functions for FFI access.
+- **Python Bridge** - Zero-dependency ctypes wrapper (`lunanet.py`) with auto-DLL discovery and type-safe prototypes.
+- **I/Q Signal Generator** - BPSK(1) baseband generator outputting float32 binary and CSV. Mapping: `0 → +1.0`, `1 → -1.0`.
 
 ---
 
@@ -72,6 +80,11 @@ Spreading-Codes/
 │   │   ├── frame_assembler.*       #   Frame composition & interleaving
 │   │   ├── frame_exporter.*        #   Binary/CSV/Hex output
 │   │   └── frame_config.h          #   Configuration parameters
+│   ├── gateway4/                   # Baseband signal generation
+│   │   ├── bpsk_modulator.*        #   BPSK mapping + AFS-I data modulation
+│   │   ├── iq_generator.*          #   Time-aligned I/Q sample generation
+│   │   ├── signal_exporter.*       #   float32 binary + CSV exporters
+│   │   └── signal_config.h         #   Chip-rate and frame timing constants
 │   ├── testing/                    # Test framework
 │   │   ├── test_reporter.*         #   Markdown + JUnit XML output
 │   │   ├── test_validators.*       #   Validation primitives
@@ -100,8 +113,8 @@ cmake --build build --config Release
 
 Outputs:
 
-- `build/bin/Release/lunanet_spreading_codes.dll` — shared library with C API
-- `build/bin/Release/test_engine.exe` — validation harness
+- `build/bin/Release/lunanet_spreading_codes.dll` - shared library with C API
+- `build/bin/Release/test_engine.exe` - validation harness
 
 ---
 
@@ -123,6 +136,7 @@ ctest --test-dir build --output-on-failure
 ctest --test-dir build -R gateway1_validation --output-on-failure
 ctest --test-dir build -R gateway2_validation --output-on-failure
 ctest --test-dir build -R gateway3_validation --output-on-failure
+ctest --test-dir build -R gateway4_validation --output-on-failure
 ```
 
 Run only one gateway validation scope:
@@ -136,6 +150,9 @@ Run only one gateway validation scope:
 
 # Gateway 3 only
 ./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway3
+
+# Gateway 4 only
+./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway4
 ```
 
 ```text
@@ -163,7 +180,7 @@ Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for ful
 python codes/gateway1/gui/report_viewer.py
 ```
 
-Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports. Displays validation results for all gateways (1, 2, and 3).
+Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports. Displays validation results for all gateways (1, 2, 3, and 4).
 
 ---
 
@@ -235,14 +252,14 @@ Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) compl
 
 ## Roadmap
 
-- [x] Gateway 1 — Spreading code generation (210 PRNs, all types)
-- [x] Gateway 1C — Table 11 interim code validation
-- [x] Gateway 2 — FEC encoding (BCH, CRC-24, LDPC, interleaver)
-- [x] Gateway 3 — Frame assembly (sync + SB1 + interleaved SB2-4)
+- [x] Gateway 1 - Spreading code generation (210 PRNs, all types)
+- [x] Gateway 1C - Table 11 interim code validation
+- [x] Gateway 2 - FEC encoding (BCH, CRC-24, LDPC, interleaver)
+- [x] Gateway 3 - Frame assembly (sync + SB1 + interleaved SB2-4)
 - [x] Python bridge layer (ctypes + C API)
 - [x] BPSK(1) I/Q signal generation
-- [ ] Gateway 4 — Baseband signal generation (BPSK modulation, I/Q samples)
-- [ ] Gateways 5-6 — Decoding pipeline (frame sync, decoders, message parsing)
+- [x] Gateway 4 - Baseband signal generation (BPSK modulation, I/Q samples)
+- [ ] Gateways 5-6 - Decoding pipeline (frame sync, decoders, message parsing)
 - [ ] End-to-end pipeline validation
 
 ---
