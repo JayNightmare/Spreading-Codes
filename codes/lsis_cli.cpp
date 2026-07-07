@@ -231,15 +231,31 @@ int CmdGenerateCodes(Args& a) {
         const fs::path output_dir = output.empty() ? fs::path(".") : fs::path(output);
 
         std::error_code fs_error;
-        if (fs::exists(output_dir, fs_error) && !fs::is_directory(output_dir, fs_error)) {
-            std::cerr << "error: for --codes all, --output must be a directory: "
-                      << output_dir.string() << "\n";
+        bool dir_exists = fs::exists(output_dir, fs_error);
+        if (fs_error) {
+            std::cerr << "error: cannot check output path: "
+                      << output_dir.string() << ": " << fs_error.message() << "\n";
             return 1;
         }
-        if (!fs::exists(output_dir, fs_error) && !fs::create_directories(output_dir, fs_error)) {
-            std::cerr << "error: cannot create output directory: "
-                      << output_dir.string() << "\n";
-            return 1;
+        if (dir_exists) {
+            bool is_dir = fs::is_directory(output_dir, fs_error);
+            if (fs_error) {
+                std::cerr << "error: cannot check output path: "
+                          << output_dir.string() << ": " << fs_error.message() << "\n";
+                return 1;
+            }
+            if (!is_dir) {
+                std::cerr << "error: for --codes all, --output must be a directory: "
+                          << output_dir.string() << "\n";
+                return 1;
+            }
+        } else {
+            fs::create_directories(output_dir, fs_error);
+            if (fs_error) {
+                std::cerr << "error: cannot create output directory: "
+                          << output_dir.string() << ": " << fs_error.message() << "\n";
+                return 1;
+            }
         }
 
         for (CodeFamily current_family : {CodeFamily::Gold, CodeFamily::WeilPrimary, CodeFamily::WeilTertiary}) {
