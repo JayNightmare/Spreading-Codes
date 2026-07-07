@@ -306,7 +306,11 @@ int CmdEncode(Args& a) {
         if (GetInt(a, "--rate", rate)) continue;
         if (GetString(a, "--ced", ced_hex)) continue;
         if (GetString(a, "--output", output)) continue;
-        if (GetString(a, "--codes", codes)) continue;
+        if (GetString(a, "--codes", codes)) {
+            std::cerr << "error: --codes is not supported for encode (encode always uses Gold); got: "
+                      << codes << "\n";
+            return 1;
+        }
         if (GetString(a, "--config", config)) continue;
         if (GetString(a, "--csv-dir", csv_dir)) continue;
         std::cerr << "error: unknown option: " << Peek(a) << "\n";
