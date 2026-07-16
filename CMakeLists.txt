@@ -80,6 +80,43 @@ target_include_directories(lunanet_gateway4 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway4
 )
 
+set(GATEWAY5_SOURCES
+    codes/gateway5/frame_synchronizer.cpp
+)
+
+set(GATEWAY5_HEADERS
+    codes/gateway5/frame_synchronizer.h
+)
+
+add_library(lunanet_gateway5 STATIC ${GATEWAY5_SOURCES} ${GATEWAY5_HEADERS})
+
+target_include_directories(lunanet_gateway5 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway5
+)
+
+target_link_libraries(lunanet_gateway5 PUBLIC
+    lunanet_gateway3
+    lunanet_gateway4
+)
+
+add_executable(gateway5_frame_sync_test
+    codes/gateway5/frame_sync_test.cpp
+)
+
+target_link_libraries(gateway5_frame_sync_test PRIVATE
+    lunanet_gateway5
+)
+
+set_target_properties(gateway5_frame_sync_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_frame_sync_test
+    COMMAND gateway5_frame_sync_test
+)
+
 set(GATEWAY1_SOURCES
     codes/spreading_codes.cpp
     codes/gateway1/spreading_config.cpp
