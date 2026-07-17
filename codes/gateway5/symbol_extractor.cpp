@@ -7,11 +7,13 @@ namespace lunanet::gateway5 {
 ExtractedFrame ExtractFrameSymbols(const std::vector<double>& received,
                                    std::size_t frame_offset) {
     // Verify the input is long enough to hold a full 6000-symbol frame.
-    if (received.size() < frame_offset + static_cast<std::size_t>(kFrameSymbols)) {
+    if (frame_offset > received.size() ||
+        received.size() - frame_offset < static_cast<std::size_t>(kFrameSymbols)) {
         return {};
     }
 
-    const auto begin = received.cbegin() + static_cast<std::ptrdiff_t>(frame_offset);
+    const auto begin = received.cbegin() +
+        static_cast<std::vector<double>::difference_type>(frame_offset);
 
     ExtractedFrame frame;
     frame.sp.assign(begin, begin + kSpSymbolsStage2);
