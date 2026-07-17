@@ -1,5 +1,10 @@
 <!-- markdownlint-disable MD060 -->
 
+> [!IMPORTANT]
+> Historical draft snapshot.
+> This submission draft reflects the repository state at the time it was prepared and can diverge from current implementation status.
+> Use root `README.md` and latest `Validation/reports/` outputs for current status.
+
 # LSIS-AFS Competition - Submission Report (Current Stage Draft)
 
 This draft is completed to the current implementation stage in this repository. Unknown team-specific fields are marked TBD for you to finalize.

@@ -90,6 +90,11 @@ Your submission **must** include ALL of the following or it receives 0 points:
 
 ### Section 4: Frame Synchronization & Decoding (Gateway 5)
 
+Current repository coverage note (2026-07):
+
+- Partially implemented: symbol extraction framing and LLR conversion helpers, plus sync-reference construction and unit tests.
+- Pending for full Gateway 5 completion: noisy-stream frame synchronization, de-spreading integration, LDPC decode-chain integration, and performance qualification (BER/sync-rate/decode-time).
+
 | ID | LSIS Ref | Requirement | Acceptance Criteria | Gateway | Points |
 |----|----------|-------------|-------------------|---------|--------|
 | FSD-5.1 | Table 8, Sec 2.3 | Frame sync detection via sync pattern | Detects sync pattern > 99% at SNR > 0 dB | 5 | 3 |

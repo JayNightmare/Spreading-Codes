@@ -7,6 +7,7 @@ This document provides reproducible build and validation commands for Windows an
 - Build all targets using CMake
 - Run the full validation suite
 - Run per-gateway validation (Gateway 1 to Gateway 4)
+- Run standalone Gateway 5 foundation tests
 
 ## Prerequisites
 
@@ -122,6 +123,18 @@ ctest --test-dir build -R gateway3_validation --output-on-failure
 ctest --test-dir build -R gateway4_validation --output-on-failure
 ```
 
+### Gateway 5 Foundation Tests (standalone executables)
+
+```powershell
+# Visual Studio generator
+.\build\bin\Release\gateway5_frame_sync_test.exe
+.\build\bin\Release\gateway5_symbol_extractor_test.exe
+
+# Ninja generator
+.\build\bin\gateway5_frame_sync_test.exe
+.\build\bin\gateway5_symbol_extractor_test.exe
+```
+
 ## Validation (Linux)
 
 ### Full Validation via test_engine
@@ -149,6 +162,13 @@ ctest --test-dir build -R gateway3_validation --output-on-failure
 ctest --test-dir build -R gateway4_validation --output-on-failure
 ```
 
+### Gateway 5 Foundation Tests (standalone executables)
+
+```bash
+./build/bin/gateway5_frame_sync_test
+./build/bin/gateway5_symbol_extractor_test
+```
+
 ## Reports
 
 Validation reports are written under:
@@ -157,6 +177,11 @@ Validation reports are written under:
 - `Validation/reports/YYYY-MM-DD/HH-MM-SS.xml`
 
 Gateway-filtered runs use the suffix `_gatewayX` in the filename.
+
+Notes:
+
+- CTest gateway labels currently cover `gateway1_validation` through `gateway4_validation`.
+- Gateway 5 tests are separate executables and should be run directly as shown above.
 
 ## Troubleshooting
 

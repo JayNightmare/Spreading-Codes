@@ -7,14 +7,14 @@ This document explains the software architecture, the rationale behind our desig
 Our implementation strategy was guided by three core principles:
 
 1. **Modular, Pure Functional Core:** We built the system as a series of isolated, stateless C++ libraries. The generators and encoders take raw inputs and return exactly formatted vectors. There is no hidden global state, making the system highly testable and trivially parallelizable.
-2. **Test-Driven Traceability:** Every component was built directly against the LSIS-AFS Volume A specification. We maintain a 794-test validation suite that continuously cross-checks all outputs against the Annex 3 reference vectors (ensuring perfect 210/210 PRN compliance).
+2. **Test-Driven Traceability:** Every component was built directly against the LSIS-AFS Volume A specification. The validation harness continuously cross-checks outputs against Annex 3 vectors (including full 210/210 PRN compliance for Gold and Weil code families).
 3. **Mathematical Precision over Approximations:** Rather than using arbitrary resampling filters that might introduce phase drift over a 12-second transmission, our I/Q generation uses deterministic rational-index mapping ($C = \lfloor n \cdot R_{chip} / R_{sample} \rfloor$). This guarantees mathematically perfect zero-order hold alignment for both the AFS-I and AFS-Q channels across the entire 12-second navigation frame.
 
 ---
 
 ## The Gateway Pipeline
 
-The LSIS-AFS specification divides the system into functional "Gateways". We have fully implemented Gateways 1 through 4, successfully producing the final I/Q baseband signal.
+The LSIS-AFS specification divides the system into functional "Gateways". We have fully implemented Gateways 1 through 4 for the encode/transmit side and added partial Gateway 5 foundations for the decode side.
 
 ### Gateway Responsibilities
 
@@ -24,6 +24,9 @@ The LSIS-AFS specification divides the system into functional "Gateways". We hav
 | **2**   | FEC Encoding      | Add redundancy to the navigation data so the receiver can correct errors.             | - BCH(51,8) Encoder/Decoder<br>- CRC-24Q Generator<br>- Rate-1/2 LDPC Encoder<br>- 60×98 Block Interleaver    |
 | **3**   | Frame Assembly    | Pack the encoded data into the 6000-symbol, 12-second navigation frame.               | - Sync Pattern Prepending<br>- SB1 / SB2 / SB3 / SB4 Builders<br>- Frame Concatenation                        |
 | **4**   | Signal Generation | Convert the digital symbols and spreading codes into an analog-ready baseband signal. | - AFS-I Data Modulator<br>- BPSK Mapper<br>- Arbitrary-Rate I/Q Multiplexer                                   |
+| **5**   | Sync & Decoding (Partial) | Start the receive-side inverse chain from frame location to soft metrics.       | - Sync Reference Symbol Builder<br>- 6000-Symbol Region Extractor (68/52/5880)<br>- LLR Conversion Helper      |
+
+Current Gateway 5 gaps: robust noisy-stream frame sync detector, de-spreading integration, LDPC decode-chain integration, and BER/sync reliability qualification.
 
 ---
 

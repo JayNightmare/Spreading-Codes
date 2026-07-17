@@ -252,6 +252,18 @@ Your submission must include all of the following or it receives 0 points and is
 - CRC validator
 - Block deinterleaver
 
+### Current Repository State (2026-07)
+
+- Implemented now:
+ 	- Sync reference symbol builder (`BuildSyncReferenceSymbols`) from the fixed 68-symbol pattern.
+ 	- Frame region slicing helper (`ExtractFrameSymbols`) for SP(68), SB1(52), and interleaved(5880).
+ 	- LLR conversion helper (`ComputeLlr`) with LSIS sign convention (positive LLR => bit 0).
+ 	- Standalone Gateway 5 foundation tests (`gateway5_frame_sync_test`, `gateway5_symbol_extractor_test`).
+- Not complete yet:
+ 	- Robust frame sync detection in noisy/offset streams.
+ 	- Full decode-chain integration (de-spreading, LDPC decode, CRC-gated frame acceptance).
+ 	- BER and sync-reliability qualification against competition targets.
+
 ### Requirements
 
 | ID     | Requirement                            |

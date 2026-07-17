@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> Historical planning document.
+> This file captures early competition planning notes and may not reflect current repository implementation status.
+> For current status and validated capabilities, use the root `README.md`, `docs/Reproduce.md`, and recent `Validation/reports/` artifacts.
+
 | LSIS-AFS  | Reference       |     | Implementation |             |         | Competition |        |
 | --------- | --------------- | --- | -------------- | ----------- | ------- | ----------- | ------ |
 | ￿ LunaNet | Signal-In-Space |     |                | - Augmented | Forward |             | Signal |
@@ -133,7 +138,7 @@ tionbetweenencodinganddecoding-Reusablecomponentsforcommonoperations-Testfilesco
 | Understanding     |     | the       | Specification |     |     |     |     |
 Start here: 1. Read Section 1 (Introduction) of LSIS-AFS vol A 2. Review Section 2.3.5 (Spreading codes)
 
-3. Study Section 2.4 (Message format) 4. Examine Appendices C, D, E (Code tables)
+1. Study Section 2.4 (Message format) 4. Examine Appendices C, D, E (Code tables)
 Sections to focus on(softwareimplementation): -Section2.3: SignalStructure(spreadingcodes,modula-
 tion) - Section 2.4: Message Format (frame structure, encoding) - Section 2.5: Navigation Message Content
 
@@ -260,7 +265,7 @@ Reference Data - LDPC matrices: Available in Annex1 - Spreading codes: Available
 What to Submit 1. Complete source code with clear structure 2. Test suite with results demonstrating
 correctness3. Documentationexplainingyourdesignandusage4. Examplesdemonstratingkeyfunctionality
 
-5. Performance report showing compliance with requirements 6. Build/run instructions
+1. Performance report showing compliance with requirements 6. Build/run instructions
 Submission Format - Any format that allows evaluation (repository, archive, etc.) - Must include clear
 instructionsforbuildingandrunning-Mustincludealldependenciesorinstructionstoobtainthem-Should
 | be reproducible |     | on standard | hardware |     |     |     |

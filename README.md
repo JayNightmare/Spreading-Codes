@@ -2,7 +2,7 @@
 
 Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code generators and forward error correction (FEC) encoders, built to the **LSIS-AFS Volume A** specification.
 
-**765/765 tests passing** across 12 validation suites.
+Current status: Gateways 1-4 are implemented and validated in the main pipeline, and Gateway 5 has partial in-repo foundations (sync reference, frame slicing, and LLR utilities).
 
 ---
 
@@ -41,11 +41,25 @@ Implementation of the LunaNet Augmented Forward Signal (AFS) spreading code gene
 - **Configurable Sample Rate** - Generates I/Q at any positive integer multiple of 1.023 MHz (default: 1.023 MHz workshop profile).
 - **Signal Exporters** - Interleaved float32 little-endian binary (`[I0,Q0,I1,Q1,...]`) and CSV (`index,I,Q`) output formats.
 
+### Gateway 5 - Frame Sync & Decode Foundations (Partial)
+
+- **Sync Reference Builder** - `BuildSyncReferenceSymbols()` maps the fixed 68-symbol sync pattern to BPSK reference symbols for Stage 1 frame synchronization.
+- **Frame Symbol Extractor** - `ExtractFrameSymbols()` slices a detected 6000-symbol frame into SP(68), SB1(52), and interleaved(5880) regions.
+- **Soft-Decision Helper** - `ComputeLlr()` converts signed soft symbols to LLRs using `LLR = 2r/sigma^2` (positive LLR => bit 0).
+- **Gateway 5 Unit Tests** - Standalone tests validate sync reference bits/symbols, extraction boundaries, LLR mapping, and a BCH round-trip rung.
+- **Known Gap** - Full noisy-stream frame sync detector, full LDPC decode-chain integration, and BER/sync-rate qualification are still pending.
+
 ### Cross-Language Bridge
 
 - **C API** - `extern "C"` DLL shim (`c_api.h`) exporting all generators and FEC functions for FFI access.
 - **Python Bridge** - Zero-dependency ctypes wrapper (`lunanet.py`) with auto-DLL discovery and type-safe prototypes.
 - **I/Q Signal Generator** - BPSK(1) baseband generator outputting float32 binary and CSV. Mapping: `0 → +1.0`, `1 → -1.0`.
+
+### Gateway 5 Knowledge Bank
+
+- External reference and scaffold notes for Gateway 5 are maintained in:
+  - <https://github.com/KURE-x-Tech/Asteria-Knowledge-Base-G5-share>
+- This knowledge bank is documentation/scaffold guidance and is not automatically integrated into this repository build.
 
 ---
 
@@ -59,7 +73,7 @@ Spreading-Codes/
 ├── codes/
 │   ├── spreading_codes.h/.cpp      # Public C++ API
 │   ├── c_api.h/.cpp                # C-linkage DLL exports
-│   ├── test_engine.cpp             # Orchestration harness (10 suites)
+│   ├── test_engine.cpp             # Orchestration harness (gateway-scoped suites)
 │   ├── gateway1/                   # Spreading code generators
 │   │   ├── gold_code_generator.*   #   Gold code (2046 chips)
 │   │   ├── weil_code_generator.*   #   Weil primary/tertiary
@@ -85,6 +99,11 @@ Spreading-Codes/
 │   │   ├── iq_generator.*          #   Time-aligned I/Q sample generation
 │   │   ├── signal_exporter.*       #   float32 binary + CSV exporters
 │   │   └── signal_config.h         #   Chip-rate and frame timing constants
+│   ├── gateway5/                   # Decode-side foundations (partial)
+│   │   ├── frame_synchronizer.*    #   Sync reference symbol construction
+│   │   ├── symbol_extractor.*      #   6000-symbol frame slicing + LLR helper
+│   │   ├── frame_sync_test.cpp     #   Sync pattern/reference validation
+│   │   └── symbol_extractor_test.cpp # Extraction/LLR/BCH validation ladder
 │   ├── testing/                    # Test framework
 │   │   ├── test_reporter.*         #   Markdown + JUnit XML output
 │   │   ├── test_validators.*       #   Validation primitives
@@ -122,10 +141,14 @@ Outputs:
 
 ## Validation
 
-Run the full test suite (765 tests across 12 suites):
+Run the full configured validation scope:
 
 ```bash
-./build/bin/Release/test_engine.exe config/spreading_codes_config.ini
+# Multi-config (Visual Studio)
+./build/bin/Release/test_engine config/spreading_codes_config.ini
+
+# Single-config (Ninja/Unix)
+./build/bin/test_engine config/spreading_codes_config.ini
 ```
 
 Run modular CTest targets:
@@ -144,38 +167,35 @@ ctest --test-dir build -R gateway4_validation --output-on-failure
 Run only one gateway validation scope:
 
 ```bash
-# Gateway 1 only
-./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway1
+# Multi-config (Visual Studio)
+./build/bin/Release/test_engine config/spreading_codes_config.ini --gateway gateway1
+./build/bin/Release/test_engine config/spreading_codes_config.ini --gateway gateway2
+./build/bin/Release/test_engine config/spreading_codes_config.ini --gateway gateway3
+./build/bin/Release/test_engine config/spreading_codes_config.ini --gateway gateway4
 
-# Gateway 2 only
-./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway2
-
-# Gateway 3 only
-./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway3
-
-# Gateway 4 only
-./build/bin/Release/test_engine.exe config/spreading_codes_config.ini --gateway gateway4
+# Single-config (Ninja/Unix)
+./build/bin/test_engine config/spreading_codes_config.ini --gateway gateway1
+./build/bin/test_engine config/spreading_codes_config.ini --gateway gateway2
+./build/bin/test_engine config/spreading_codes_config.ini --gateway gateway3
+./build/bin/test_engine config/spreading_codes_config.ini --gateway gateway4
 ```
 
-Gateway 4 validation now includes an **EndToEnd/Pipeline** integration suite that runs:
-frame assembly (Gateway 3) → AFS-I modulation → AFS-Q generation → I/Q generation → IQ32 export checks.
+Run standalone Gateway 5 foundation tests:
 
-```text
-Smoke reference validation:            PASS (12/12)
-Annex3/Gold reference validation:      PASS (210/210)
-Annex3/Weil Primary reference validation: PASS (210/210)
-Annex3/Weil Tertiary reference validation: PASS (210/210)
-Table11/Assignments reference validation: PASS (60/60)
-Gateway2/BCH reference validation:     PASS (10/10)
-Gateway2/CRC24 reference validation:   PASS (4/4)
-Gateway2/Interleaver reference validation: PASS (4/4)
-Gateway2/LDPC reference validation:    PASS (12/12)
-Gateway3/Frame structure validation:   PASS (10/10)
-Gateway3/Bit allocation validation:    PASS (8/8)
-Performance reference validation:      PASS (3/3)
+```bash
+# Multi-config (Visual Studio)
+./build/bin/Release/gateway5_frame_sync_test
+./build/bin/Release/gateway5_symbol_extractor_test
 
-Selected validation checks passed. (765/765 tests)
+# Single-config (Ninja/Unix)
+./build/bin/gateway5_frame_sync_test
+./build/bin/gateway5_symbol_extractor_test
 ```
+
+Gateway 4 validation includes an **EndToEnd/Pipeline** integration scope:
+frame assembly (Gateway 3) -> AFS-I modulation -> AFS-Q generation -> I/Q generation -> IQ32 export checks.
+
+Test totals evolve as suites are added. Treat the generated report artifacts under `Validation/reports/` as the source of truth for exact counts in your build.
 
 Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for full runs, or `Validation/reports/YYYY-MM-DD/HH-MM-SS_gatewayX.{md,xml}` for gateway-filtered runs.
 
@@ -185,7 +205,7 @@ Reports are written to `Validation/reports/YYYY-MM-DD/HH-MM-SS.{md,xml}` for ful
 python codes/gateway1/gui/report_viewer.py
 ```
 
-Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports. Displays validation results for all gateways (1, 2, 3, and 4).
+Dark-themed Tkinter viewer with color-coded pass/fail rows, suite/status filtering, and auto-discovery of timestamped reports.
 
 ---
 
@@ -264,7 +284,8 @@ Full PRN generation pipeline (Gold + Weil Primary + Weil Tertiary + AFS-Q) compl
 - [x] Python bridge layer (ctypes + C API)
 - [x] BPSK(1) I/Q signal generation
 - [x] Gateway 4 - Baseband signal generation (BPSK modulation, I/Q samples)
-- [ ] Gateways 5-6 - Decoding pipeline (frame sync, decoders, message parsing)
+- [ ] Gateway 5 - Full decoding pipeline completion (currently partial foundations implemented)
+- [ ] Gateway 6 - Message parsing pipeline
 - [x] End-to-end pipeline validation
 
 ---
