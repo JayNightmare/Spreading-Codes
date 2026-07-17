@@ -2,6 +2,7 @@
 #include "gateway2/bch_codec.h"
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
