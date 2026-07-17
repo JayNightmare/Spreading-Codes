@@ -28,18 +28,24 @@ int main() {
         return 1;
     }
 
-    // 2. Check the first 12 bits and symbols against the expected values
-    const std::array<uint8_t, 12> expected_bits = {
-        1, 1, 0, 0,
-        1, 1, 0, 0,
-        0, 1, 1, 0
+    // 2. Check all 68 bits and symbols against the expected values
+    const std::array<uint8_t, 68> expected_bits = {
+        1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0,
+        0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
+        0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1,
+        0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0,
+        1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+        0, 1, 0, 0, 1, 0, 1, 0
     };
 
-    // 3. Check the first 12 symbols against the expected values after converted to BPSK mapping
-    const std::array<float, 12> expected_symbols = {
-        -1.0f, -1.0f, +1.0f, +1.0f,
-        -1.0f, -1.0f, +1.0f, +1.0f,
-        +1.0f, -1.0f, -1.0f, +1.0f
+    // 3. Check all 68 symbols against the expected values after converted to BPSK mapping
+    const std::array<float, 68> expected_symbols = {
+        -1.0f, -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f, +1.0f, +1.0f, -1.0f, -1.0f, +1.0f,
+        +1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f,
+        +1.0f, -1.0f, +1.0f, +1.0f, +1.0f, -1.0f, +1.0f, -1.0f, +1.0f, +1.0f, -1.0f, -1.0f,
+        +1.0f, -1.0f, -1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, -1.0f, +1.0f, +1.0f,
+        -1.0f, +1.0f, +1.0f, -1.0f, -1.0f, -1.0f, -1.0f, +1.0f, +1.0f, +1.0f, +1.0f, +1.0f,
+        +1.0f, -1.0f, +1.0f, +1.0f, -1.0f, +1.0f, -1.0f, +1.0f
     };
 
     for (std::size_t i = 0; i < expected_bits.size(); ++i) {
@@ -59,7 +65,7 @@ int main() {
     std::cout << "PASS: sync pattern has 68 bits\n";
     std::cout << "PASS: pattern is MSB-first\n";
     std::cout << "PASS: BPSK mapping is correct\n";
-    std::cout << "PASS: first 12 symbols match the specification\n";
+    std::cout << "PASS: all 68 symbols match the specification\n";
 
     return 0;
 }
