@@ -82,10 +82,12 @@ target_include_directories(lunanet_gateway4 PUBLIC
 
 set(GATEWAY5_SOURCES
     codes/gateway5/frame_synchronizer.cpp
+    codes/gateway5/symbol_extractor.cpp
 )
 
 set(GATEWAY5_HEADERS
     codes/gateway5/frame_synchronizer.h
+    codes/gateway5/symbol_extractor.h
 )
 
 add_library(lunanet_gateway5 STATIC ${GATEWAY5_SOURCES} ${GATEWAY5_HEADERS})
@@ -115,6 +117,29 @@ set_target_properties(gateway5_frame_sync_test PROPERTIES
 add_test(
     NAME gateway5_frame_sync_test
     COMMAND gateway5_frame_sync_test
+)
+
+add_executable(gateway5_symbol_extractor_test
+    codes/gateway5/symbol_extractor_test.cpp
+)
+
+target_link_libraries(gateway5_symbol_extractor_test PRIVATE
+    lunanet_gateway5
+    lunanet_gateway2
+)
+
+target_include_directories(gateway5_symbol_extractor_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+)
+
+set_target_properties(gateway5_symbol_extractor_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_symbol_extractor_test
+    COMMAND gateway5_symbol_extractor_test
 )
 
 set(GATEWAY1_SOURCES
