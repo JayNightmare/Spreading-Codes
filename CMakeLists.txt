@@ -83,11 +83,19 @@ target_include_directories(lunanet_gateway4 PUBLIC
 set(GATEWAY5_SOURCES
     codes/gateway5/frame_synchronizer.cpp
     codes/gateway5/symbol_extractor.cpp
+    codes/gateway5/bch_soft_decoder.cpp
+    codes/gateway5/deinterleaver.cpp
+    codes/gateway5/ldpc_decoder.cpp
+    codes/gateway5/crc_validator.cpp
 )
 
 set(GATEWAY5_HEADERS
     codes/gateway5/frame_synchronizer.h
     codes/gateway5/symbol_extractor.h
+    codes/gateway5/bch_soft_decoder.h
+    codes/gateway5/deinterleaver.h
+    codes/gateway5/ldpc_decoder.h
+    codes/gateway5/crc_validator.h
 )
 
 add_library(lunanet_gateway5 STATIC ${GATEWAY5_SOURCES} ${GATEWAY5_HEADERS})
@@ -140,6 +148,98 @@ set_target_properties(gateway5_symbol_extractor_test PROPERTIES
 add_test(
     NAME gateway5_symbol_extractor_test
     COMMAND gateway5_symbol_extractor_test
+)
+
+add_executable(gateway5_bch_decode_test
+    codes/gateway5/bch_decode_test.cpp
+)
+
+target_link_libraries(gateway5_bch_decode_test PRIVATE
+    lunanet_gateway5
+    lunanet_gateway2
+)
+
+target_include_directories(gateway5_bch_decode_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+)
+
+set_target_properties(gateway5_bch_decode_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_bch_decode_test
+    COMMAND gateway5_bch_decode_test
+)
+
+add_executable(gateway5_deinterleave_test
+    codes/gateway5/deinterleave_test.cpp
+)
+
+target_link_libraries(gateway5_deinterleave_test PRIVATE
+    lunanet_gateway5
+    lunanet_gateway2
+)
+
+target_include_directories(gateway5_deinterleave_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+)
+
+set_target_properties(gateway5_deinterleave_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_deinterleave_test
+    COMMAND gateway5_deinterleave_test
+)
+
+add_executable(gateway5_ldpc_decode_test
+    codes/gateway5/ldpc_decode_test.cpp
+)
+
+target_link_libraries(gateway5_ldpc_decode_test PRIVATE
+    lunanet_gateway5
+    lunanet_gateway2
+)
+
+target_include_directories(gateway5_ldpc_decode_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+)
+
+set_target_properties(gateway5_ldpc_decode_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_ldpc_decode_test
+    COMMAND gateway5_ldpc_decode_test
+)
+
+add_executable(gateway5_crc_validation_test
+    codes/gateway5/crc_validation_test.cpp
+)
+
+target_link_libraries(gateway5_crc_validation_test PRIVATE
+    lunanet_gateway5
+    lunanet_gateway2
+)
+
+target_include_directories(gateway5_crc_validation_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway2
+)
+
+set_target_properties(gateway5_crc_validation_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_crc_validation_test
+    COMMAND gateway5_crc_validation_test
 )
 
 set(GATEWAY1_SOURCES

@@ -8,9 +8,8 @@ namespace lunanet::gateway2 {
 namespace {
 
 /**
- * Runs the 8-stage LFSR with generator polynomial 763 (octal).
- * Feedback mask 0xF3: taps at bit positions 7,6,5,4,1,0
- * (representing x^7 + x^6 + x^5 + x^4 + x + 1, after removing x^8).
+ * Runs the 8-stage LFSR using the LSIS Figure 7/8 Fibonacci topology.
+ * Feedback taps are stages {1,4,5,6,7,8} (bits {0,3,4,5,6,7} => mask 0xF9).
  *
  * The LFSR output is the MSB of the register at each step.
  */
@@ -22,11 +21,17 @@ std::array<uint8_t, kBchLfsrOutputSymbols> LfsrEncode(uint8_t initial_state) {
         const uint8_t output_bit = (reg >> 7) & 1;
         output[i] = output_bit;
 
-        // Shift left; if output bit was 1, XOR with feedback polynomial
-        reg <<= 1;
-        if (output_bit != 0) {
-            reg ^= kBchGeneratorPoly;
+        // Fibonacci feedback: XOR configured taps from current register,
+        // then shift left and inject feedback at stage 1 (bit0).
+        uint8_t feedback = 0;
+        for (int bit = 0; bit < kBchLfsrStages; ++bit) {
+            if ((kBchFeedbackTapMask & static_cast<uint8_t>(1u << bit)) != 0u) {
+                feedback ^= static_cast<uint8_t>((reg >> bit) & 0x1u);
+            }
         }
+
+        reg = static_cast<uint8_t>((reg << 1) & 0xFFu);
+        reg = static_cast<uint8_t>(reg | feedback);
     }
 
     return output;
@@ -78,21 +83,15 @@ int BchDecodeSoft(const std::vector<double>& soft_symbols) {
         return -1;
     }
 
-    // The MSB indicator from symbol[0] determines the XOR applied during encoding.
     // Per the LSIS spec decoder description:
     //   1. Strip the first symbol (MSB indicator)
-    //   2. XOR the MSB value back out of the remaining 51 symbols
-    //   3. Correlate against all 256 MSB=0 codeword hypotheses
+    //   2. Correlate the remaining 51 symbols against all 256 MSB=0
+    //      codeword hypotheses
     //   4. Max |correlation| → 8 LSBs; sign → MSB
 
     static const auto codebook = BchGenerateCodebook();
 
-    // Work with the 51 inner symbols, removing the MSB effect.
-    // In soft-decision domain, XOR with 1 = flip sign, XOR with 0 = no-op.
-    // We determine MSB from the first soft symbol's sign.
-    // But per the spec, we correlate assuming MSB=0 and the sign of the
-    // best correlation tells us the actual MSB. So we just use the raw
-    // 51 symbols directly.
+    // Correlate raw inner symbols (indices 1..51) against the MSB=0 codebook.
 
     double best_abs = -1.0;
     double best_raw = 0.0;
@@ -123,8 +122,8 @@ int BchDecodeSoft(const std::vector<double>& soft_symbols) {
         }
     }
 
-    // MSB decision: positive correlation → MSB=0, negative → MSB=1
-    const uint8_t decoded_msb = (best_raw >= 0.0) ? 0 : 1;
+    // MSB decision per spec: positive correlation => 0, otherwise 1.
+    const uint8_t decoded_msb = (best_raw > 0.0) ? 0 : 1;
 
     // Reconstruct the 9-bit SB1 value
     return (decoded_msb << 8) | best_data;

@@ -13,10 +13,12 @@ constexpr int kBchEncodedSymbols = 52;
 constexpr int kBchLfsrOutputSymbols = 51;
 
 /**
- * BCH(51,8) generator polynomial 763 (octal) = 0x1F3.
- * x^8 + x^7 + x^6 + x^5 + x + 1
+ * BCH(51,8) feedback taps per LSIS Figure 7/8 (Fibonacci LFSR form).
+ *
+ * Stage numbering is bit0=stage1 ... bit7=stage8. The feedback bit is XOR of
+ * stages {1,4,5,6,7,8}, i.e. register bits {0,3,4,5,6,7}.
  */
-constexpr uint8_t kBchGeneratorPoly = 0xF3;  // 8-bit feedback mask (excludes x^8 tap)
+constexpr uint8_t kBchFeedbackTapMask = 0xF9;
 
 /**
  * Encodes a 9-bit SB1 field (FID[2] + TOI[7]) using BCH(51,8).
