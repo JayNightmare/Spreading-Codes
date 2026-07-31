@@ -87,6 +87,9 @@ bool DecodeToSystematic(const std::vector<uint8_t>& systematic_bits,
                         std::string* error) {
     const auto encoded = lunanet::gateway2::LdpcEncode(systematic_bits, matrices.enc, params, error);
     if (encoded.empty()) {
+        if (error && error->empty()) {
+            *error = "LdpcEncode returned empty output.";
+        }
         return false;
     }
 
@@ -185,6 +188,9 @@ bool TestFrameCrcGate(const MatrixBundle& sb2,
     }
 
     // Flip one protected bit in SB3 data+spare portion and ensure frame reject.
+    // NOTE: index 0 assumes the Stage 5 systematic output has no prepended
+    // filler/metadata ahead of the data+spare field; update this index if
+    // that layout changes.
     std::vector<uint8_t> sb3_bad = sb3_s;
     sb3_bad[0] ^= 1u;
 

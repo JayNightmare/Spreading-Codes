@@ -3,6 +3,7 @@
 #define LUNANET_GATEWAY5_BCH_SOFT_DECODER_H
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace lunanet::gateway5 {
@@ -23,6 +24,8 @@ constexpr int kStage3InnerSoftSymbols = 51;
  *      add |s| for sign match, subtract |s| for sign mismatch.
  *   3. Choose max |correlation|.
  *   4. MSB = 0 if best correlation > 0, else MSB = 1.
+ *      (A correlation of exactly 0.0 is a deliberate tie-break toward
+ *      MSB=1; this matches gateway2::BchDecodeSoft's identical rule.)
  *
  * @param sb1_soft 52 signed soft values.
  * @return Decoded 9-bit FID+TOI (bits[8:7]=FID, bits[6:0]=TOI), or -1 on
@@ -34,10 +37,11 @@ int DecodeSb1BchSoft(const std::vector<double>& sb1_soft);
  * Packs a BCH symbol vector (MSB-first) into a 52-bit integer.
  *
  * @param symbols 52 binary symbols.
- * @return Packed 52-bit value in the low bits of uint64_t, or 0 on invalid
- *         input.
+ * @return Packed 52-bit value in the low bits of uint64_t, or std::nullopt
+ *         on invalid input size. (0 is a legitimate all-zero codeword, so
+ *         it cannot double as an error sentinel.)
  */
-uint64_t PackBch52MsbFirst(const std::vector<uint8_t>& symbols);
+std::optional<uint64_t> PackBch52MsbFirst(const std::vector<uint8_t>& symbols);
 
 /**
  * Unpacks a 52-bit integer (MSB-first) into signed soft values.

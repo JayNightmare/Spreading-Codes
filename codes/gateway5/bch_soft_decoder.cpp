@@ -51,13 +51,15 @@ int DecodeSb1BchSoft(const std::vector<double>& sb1_soft) {
         }
     }
 
+    // Deliberate tie-break: correlation == 0.0 resolves to MSB=1, matching
+    // gateway2::BchDecodeSoft's identical rule.
     const int decoded_msb = (best_raw_corr > 0.0) ? 0 : 1;
     return (decoded_msb << 8) | best_data;
 }
 
-uint64_t PackBch52MsbFirst(const std::vector<uint8_t>& symbols) {
+std::optional<uint64_t> PackBch52MsbFirst(const std::vector<uint8_t>& symbols) {
     if (symbols.size() != static_cast<std::size_t>(kStage3Sb1SoftSymbols)) {
-        return 0;
+        return std::nullopt;
     }
 
     uint64_t packed = 0;
