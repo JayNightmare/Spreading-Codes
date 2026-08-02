@@ -82,6 +82,18 @@ bool TestPackInvalidSizeRejected() {
         std::cerr << "FAIL [pack-invalid-length]: expected std::nullopt, got a value\n";
         return false;
     }
+
+    // Prove the other half of the sentinel distinction: a correctly-sized
+    // all-zero codeword must return an ENGAGED optional containing 0, not
+    // be confused with the invalid-size std::nullopt case above.
+    const std::vector<uint8_t> all_zero(
+        static_cast<std::size_t>(lunanet::gateway5::kStage3Sb1SoftSymbols), 0u);
+    const auto zero_opt = lunanet::gateway5::PackBch52MsbFirst(all_zero);
+    if (!zero_opt.has_value() || *zero_opt != 0u) {
+        std::cerr << "FAIL [pack-zero]: expected an engaged optional containing zero\n";
+        return false;
+    }
+
     return true;
 }
 
