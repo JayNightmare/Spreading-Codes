@@ -81,7 +81,7 @@ FrameSyncResult DetectFrameSync(const std::vector<double>& received,
     // blow up numerically rather than reflecting genuine confidence.
     constexpr double kMinSidelobeFloor = 1e-6;
     const double sidelobe_floor = std::max(next_highest_mag, kMinSidelobeFloor);
-    result.psr = peak_value / sidelobe_floor;
+    result.psr = std::fabs(peak_value) / sidelobe_floor;
 
     if (peak_value > 0.0 && result.psr >= psr_threshold) {
         result.detected = true;
