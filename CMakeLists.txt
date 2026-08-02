@@ -82,6 +82,7 @@ target_include_directories(lunanet_gateway4 PUBLIC
 
 set(GATEWAY5_SOURCES
     codes/gateway5/frame_synchronizer.cpp
+    codes/gateway5/sync_detector.cpp
     codes/gateway5/symbol_extractor.cpp
     codes/gateway5/bch_soft_decoder.cpp
     codes/gateway5/deinterleaver.cpp
@@ -91,6 +92,7 @@ set(GATEWAY5_SOURCES
 
 set(GATEWAY5_HEADERS
     codes/gateway5/frame_synchronizer.h
+    codes/gateway5/sync_detector.h
     codes/gateway5/symbol_extractor.h
     codes/gateway5/bch_soft_decoder.h
     codes/gateway5/deinterleaver.h
@@ -125,6 +127,23 @@ set_target_properties(gateway5_frame_sync_test PROPERTIES
 add_test(
     NAME gateway5_frame_sync_test
     COMMAND gateway5_frame_sync_test
+)
+
+add_executable(gateway5_sync_detector_test
+    codes/gateway5/sync_detector_test.cpp
+)
+
+target_link_libraries(gateway5_sync_detector_test PRIVATE
+    lunanet_gateway5
+)
+
+set_target_properties(gateway5_sync_detector_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_sync_detector_test
+    COMMAND gateway5_sync_detector_test
 )
 
 add_executable(gateway5_symbol_extractor_test
