@@ -123,6 +123,8 @@ int BchDecodeSoft(const std::vector<double>& soft_symbols) {
     }
 
     // MSB decision per spec: positive correlation => 0, otherwise 1.
+    // Deliberate tie-break: correlation == 0.0 resolves to MSB=1, matching
+    // gateway5::DecodeSb1BchSoft's identical rule.
     const uint8_t decoded_msb = (best_raw > 0.0) ? 0 : 1;
 
     // Reconstruct the 9-bit SB1 value

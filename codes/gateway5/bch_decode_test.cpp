@@ -38,8 +38,14 @@ bool TestVectorValidation() {
     constexpr uint64_t kExpectedPacked = 0x229f61dbb84a0ULL;
 
     const auto encoded = lunanet::gateway2::BchEncode(kSb1);
-    const uint64_t packed = lunanet::gateway5::PackBch52MsbFirst(encoded);
+    const auto packed_opt = lunanet::gateway5::PackBch52MsbFirst(encoded);
 
+    if (!packed_opt.has_value()) {
+        std::cerr << "FAIL [vector encode]: PackBch52MsbFirst rejected a valid 52-symbol input\n";
+        return false;
+    }
+
+    const uint64_t packed = *packed_opt;
     if (packed != kExpectedPacked) {
         std::cerr << "FAIL [vector encode]: encode(0x045) packed = 0x" << std::hex
                   << packed << ", expected 0x" << kExpectedPacked << std::dec << "\n";
@@ -67,6 +73,18 @@ bool TestInvalidLengthRejected() {
     return true;
 }
 
+bool TestPackInvalidSizeRejected() {
+    // 0 is a valid all-zero codeword, so the invalid-size case must be
+    // distinguishable via std::nullopt rather than a 0 return value.
+    const std::vector<uint8_t> too_short(10, 0u);
+    const auto packed_opt = lunanet::gateway5::PackBch52MsbFirst(too_short);
+    if (packed_opt.has_value()) {
+        std::cerr << "FAIL [pack-invalid-length]: expected std::nullopt, got a value\n";
+        return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 int main() {
@@ -87,6 +105,12 @@ int main() {
 
     if (TestInvalidLengthRejected()) {
         std::cout << "PASS: invalid SB1 soft vector size is rejected\n";
+    } else {
+        ok = false;
+    }
+
+    if (TestPackInvalidSizeRejected()) {
+        std::cout << "PASS: PackBch52MsbFirst rejects invalid input size via std::nullopt\n";
     } else {
         ok = false;
     }
