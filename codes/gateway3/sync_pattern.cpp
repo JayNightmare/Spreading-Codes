@@ -29,6 +29,13 @@ std::vector<uint8_t> BuildSyncPattern() {
         bits.push_back((nibble >> 0) & 1);
     }
 
+    // Guard against kSyncHex ever being edited to a different length: the
+    // rest of the codebase (frame_synchronizer, frame_sync_test) assumes
+    // exactly kSyncPatternSymbols bits and has no other way to detect drift.
+    if (bits.size() != static_cast<std::size_t>(kSyncPatternSymbols)) {
+        return {};
+    }
+
     return bits;
 }
 

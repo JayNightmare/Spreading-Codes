@@ -124,6 +124,29 @@ bool TestKnownCrcVector() {
     return true;
 }
 
+bool TestRejectsWrongLengthSubframe() {
+    // Feed an obviously wrong-length systematic vector (not 1200 or 870 bits)
+    // and confirm ValidateSubframeCrc rejects it gracefully with an error
+    // message rather than reading out of bounds or crashing.
+    const std::vector<uint8_t> bad(10, 0u);
+
+    const auto verdict_sb2 = lunanet::gateway5::ValidateSubframeCrc(
+        bad, lunanet::gateway5::SubframeCrcType::Sb2);
+    if (verdict_sb2.valid || verdict_sb2.error.empty()) {
+        std::cerr << "FAIL [wrong-length subframe]: SB2 should reject with an error message\n";
+        return false;
+    }
+
+    const auto verdict_sb3 = lunanet::gateway5::ValidateSubframeCrc(
+        bad, lunanet::gateway5::SubframeCrcType::Sb3);
+    if (verdict_sb3.valid || verdict_sb3.error.empty()) {
+        std::cerr << "FAIL [wrong-length subframe]: SB3 should reject with an error message\n";
+        return false;
+    }
+
+    return true;
+}
+
 bool TestFrameCrcGate(const MatrixBundle& sb2,
                       const MatrixBundle& sb34,
                       std::mt19937* rng) {
@@ -204,6 +227,12 @@ int main() {
 
     if (TestKnownCrcVector()) {
         std::cout << "PASS: CRC24Q(\"123456789\") = 0xCDE703\n";
+    } else {
+        ok = false;
+    }
+
+    if (TestRejectsWrongLengthSubframe()) {
+        std::cout << "PASS: wrong-length subframe is rejected gracefully\n";
     } else {
         ok = false;
     }
