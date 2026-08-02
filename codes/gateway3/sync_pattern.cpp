@@ -18,6 +18,15 @@ std::vector<uint8_t> BuildSyncPattern() {
     // Whole-byte reads would produce 4 spurious zero bits from the 9th byte.
     static const char kSyncHex[] = "CC63F74536F49E04A";
 
+    // Guard against kSyncHex ever being edited to a different length. This is
+    // a compile-time check (not a runtime early-return) because the rest of
+    // the codebase (frame_synchronizer, frame_sync_test) assumes exactly
+    // kSyncPatternSymbols bits with no other way to detect drift; failing
+    // the build is preferable to silently returning an empty vector that
+    // would propagate downstream (e.g. into BuildSyncReferenceSymbols).
+    static_assert((sizeof(kSyncHex) - 1) * 4 == kSyncPatternSymbols,
+                  "kSyncHex length must produce exactly kSyncPatternSymbols bits");
+
     std::vector<uint8_t> bits;
     bits.reserve(kSyncPatternSymbols);
 
@@ -27,13 +36,6 @@ std::vector<uint8_t> BuildSyncPattern() {
         bits.push_back((nibble >> 2) & 1);
         bits.push_back((nibble >> 1) & 1);
         bits.push_back((nibble >> 0) & 1);
-    }
-
-    // Guard against kSyncHex ever being edited to a different length: the
-    // rest of the codebase (frame_synchronizer, frame_sync_test) assumes
-    // exactly kSyncPatternSymbols bits and has no other way to detect drift.
-    if (bits.size() != static_cast<std::size_t>(kSyncPatternSymbols)) {
-        return {};
     }
 
     return bits;

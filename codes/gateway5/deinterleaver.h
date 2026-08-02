@@ -19,6 +19,14 @@ constexpr int kStage4Sb2Symbols = 2400;
 constexpr int kStage4Sb3Symbols = 1740;
 constexpr int kStage4Sb4Symbols = 1740;
 
+// Keep the SB2/SB3/SB4 partition consistent with the shared interleaver
+// total: if the canonical grid size ever changes upstream but this
+// partition isn't updated to match, catch it at compile time instead of
+// silently truncating/misaligning subframes at runtime.
+static_assert(kStage4Sb2Symbols + kStage4Sb3Symbols + kStage4Sb4Symbols ==
+                  kStage4InterleavedSymbols,
+              "Stage 4 subframe sizes must sum to kStage4InterleavedSymbols");
+
 struct Stage4Subframes {
     std::vector<double> sb2;
     std::vector<double> sb3;
