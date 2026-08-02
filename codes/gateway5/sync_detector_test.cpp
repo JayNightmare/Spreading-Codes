@@ -60,7 +60,7 @@ bool TestSelfCorrelationSidelobes() {
 
     for (std::size_t offset = 0; offset < correlation.size(); ++offset) {
         if (offset == true_offset) continue;
-        if (correlation[offset] >= 68.0 * 0.5) {
+        if (std::fabs(correlation[offset]) >= 68.0 * 0.5) {
             std::cerr << "FAIL [sidelobes]: sidelobe at offset " << offset
                       << " unexpectedly large: " << correlation[offset] << "\n";
             return false;
