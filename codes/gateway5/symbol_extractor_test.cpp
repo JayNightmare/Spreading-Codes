@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -108,6 +109,19 @@ static bool TestSymbolExtraction() {
     const auto empty = lunanet::gateway5::ExtractFrameSymbols(short_signal, 0);
     if (!empty.sp.empty() || !empty.sb1.empty() || !empty.interleaved.empty()) {
         std::cerr << "FAIL [extraction]: expected empty frame for short input\n";
+        return false;
+    }
+
+    // Regression guard for the frame_offset + kFrameSymbols integer-overflow
+    // bug (fixed upstream): a huge frame_offset near SIZE_MAX must be
+    // rejected rather than wrapping the bounds check and reading out of
+    // bounds.
+    const auto huge_offset_result = lunanet::gateway5::ExtractFrameSymbols(
+        signal, std::numeric_limits<std::size_t>::max() - 10);
+    if (!huge_offset_result.sp.empty() || !huge_offset_result.sb1.empty() ||
+        !huge_offset_result.interleaved.empty()) {
+        std::cerr << "FAIL [extraction]: expected empty frame for huge frame_offset"
+                  << " (overflow regression)\n";
         return false;
     }
 

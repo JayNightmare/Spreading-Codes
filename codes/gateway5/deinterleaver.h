@@ -4,11 +4,16 @@
 
 #include <vector>
 
+#include "gateway2/interleaver.h"
+
 namespace lunanet::gateway5 {
 
-constexpr int kStage4Rows = 60;
-constexpr int kStage4Cols = 98;
-constexpr int kStage4InterleavedSymbols = kStage4Rows * kStage4Cols;  // 5880
+// Single source of truth: mirror gateway2's interleaver grid dimensions
+// directly instead of redefining the same constants, so a future spec
+// change to the grid size only needs to be made in one place.
+constexpr int kStage4Rows = lunanet::gateway2::kInterleaverRows;
+constexpr int kStage4Cols = lunanet::gateway2::kInterleaverCols;
+constexpr int kStage4InterleavedSymbols = lunanet::gateway2::kInterleaverSize;  // 5880
 
 constexpr int kStage4Sb2Symbols = 2400;
 constexpr int kStage4Sb3Symbols = 1740;

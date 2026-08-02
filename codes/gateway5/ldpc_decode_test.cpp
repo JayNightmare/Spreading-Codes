@@ -9,6 +9,11 @@
 
 namespace {
 
+// Named to match DecodeLdpcMinSum's own defaults (see ldpc_decoder.h) so the
+// round-trip test's intent is explicit rather than a bare magic-number call.
+constexpr int kMaxIterations = 50;
+constexpr double kAlpha = 0.75;
+
 struct MatrixBundle {
     lunanet::gateway2::LdpcMatrices enc;
     lunanet::gateway2::BinaryMatrix b;
@@ -98,12 +103,12 @@ bool RunRoundTripCase(const char* tag,
         matrices.enc,
         matrices.b,
         params,
-        50,
-        0.75,
+        kMaxIterations,
+        kAlpha,
         &error);
 
     if (!decoded.converged) {
-        std::cerr << "FAIL [" << tag << "]: decoder did not converge in 50 iterations"
+        std::cerr << "FAIL [" << tag << "]: decoder did not converge in " << kMaxIterations << " iterations"
                   << " (syndrome=" << decoded.syndrome_weight << ")\n";
         return false;
     }
@@ -165,6 +170,33 @@ bool TestPunctureRestoreLengths(const MatrixBundle& sb2,
     return true;
 }
 
+bool TestRejectsWrongSizeLlrs(const MatrixBundle& sb2) {
+    // Feed a deliberately too-short LLR vector (not a full output_symbols
+    // frame) and confirm the decoder fails gracefully with an error message
+    // instead of crashing or silently producing garbage output.
+    std::string error;
+    const std::vector<double> bad_llrs(10, 1.0);
+
+    const auto decoded = lunanet::gateway5::DecodeLdpcMinSum(
+        bad_llrs,
+        sb2.enc,
+        sb2.b,
+        lunanet::gateway2::kLdpcSb2,
+        kMaxIterations,
+        kAlpha,
+        &error);
+
+    if (decoded.converged || !decoded.decoded_data_bits.empty()) {
+        std::cerr << "FAIL [wrong-size llrs]: expected graceful rejection, got a result\n";
+        return false;
+    }
+    if (error.empty()) {
+        std::cerr << "FAIL [wrong-size llrs]: expected an error message to be set\n";
+        return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 int main() {
@@ -189,6 +221,12 @@ int main() {
 
     if (TestPunctureRestoreLengths(sb2, sb34)) {
         std::cout << "PASS: puncture-restore reconstructs full-codeword lengths\n";
+    } else {
+        ok = false;
+    }
+
+    if (TestRejectsWrongSizeLlrs(sb2)) {
+        std::cout << "PASS: wrong-size LLR vector is rejected gracefully\n";
     } else {
         ok = false;
     }
