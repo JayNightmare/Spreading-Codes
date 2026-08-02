@@ -1,9 +1,11 @@
 #include "signal_exporter.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <limits>
 
 namespace lunanet::gateway4 {
 
@@ -199,11 +201,39 @@ bool ImportIqBinaryStandard(const std::string& input_path,
     parsed.duration_sec = ReadF64Le(&header[20]);
     parsed.prn = ReadU32Le(&header[28]);
 
+    // The interop spec fixes this format's version at 1; a future version
+    // may change the header layout, so an unrecognized version must be
+    // rejected rather than blindly parsed with v1 field offsets.
+    if (parsed.version != 1) {
+        if (error_message) *error_message = "Unsupported I/Q file version " +
+            std::to_string(parsed.version) + " (only version 1 is supported): " + input_path;
+        return false;
+    }
+
     const bool is_float32 = std::equal(std::begin(kSampleFormatFloat32),
                                        std::end(kSampleFormatFloat32),
                                        header.begin() + 32);
     if (!is_float32) {
         if (error_message) *error_message = "Unsupported sample format (only float32 is supported)";
+        return false;
+    }
+
+    // This header field comes from a file that may have been produced by
+    // another team's implementation, so a garbled/malicious value (NaN,
+    // negative, fractional, or larger than an int can hold) must not reach
+    // the narrowing static_cast<int> below -- that would be undefined
+    // behavior for out-of-range doubles and would silently truncate
+    // fractional ones. Our own ExportIqBinaryStandard always writes an
+    // exact integer (round-tripped from IqSignal::sample_rate_hz, an int),
+    // so requiring an exact integral value here rejects only genuinely
+    // malformed files, not legitimate ones.
+    const bool rate_is_valid =
+        std::isfinite(parsed.sample_rate_hz) &&
+        parsed.sample_rate_hz > 0.0 &&
+        parsed.sample_rate_hz <= static_cast<double>(std::numeric_limits<int>::max()) &&
+        parsed.sample_rate_hz == std::floor(parsed.sample_rate_hz);
+    if (!rate_is_valid) {
+        if (error_message) *error_message = "Header declares an invalid sample rate: " + input_path;
         return false;
     }
 
@@ -219,6 +249,21 @@ bool ImportIqBinaryStandard(const std::string& input_path,
     IqSignal signal;
     signal.sample_rate_hz = static_cast<int>(parsed.sample_rate_hz);
     const std::size_t num_samples = payload.size() / kBytesPerSample;
+
+    // Cross-check the recovered sample count against the header's declared
+    // duration -- catches a file truncated exactly on an I/Q pair boundary,
+    // which would otherwise import "successfully" as a silently shortened
+    // signal. A one-sample tolerance absorbs rounding in duration_sec.
+    if (parsed.duration_sec > 0.0) {
+        const double expected_samples = parsed.duration_sec * parsed.sample_rate_hz;
+        if (std::fabs(static_cast<double>(num_samples) - expected_samples) > 1.0) {
+            if (error_message) *error_message = "Sample count (" + std::to_string(num_samples) +
+                ") does not match header's duration_sec * sample_rate_hz (~" +
+                std::to_string(expected_samples) + "): " + input_path;
+            return false;
+        }
+    }
+
     signal.i.reserve(num_samples);
     signal.q.reserve(num_samples);
     for (std::size_t n = 0; n < num_samples; ++n) {

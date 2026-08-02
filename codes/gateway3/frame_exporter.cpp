@@ -213,6 +213,33 @@ bool ImportFrameStandard(const std::string& input_path,
     parsed.prn = ReadU32Le(&header[16]);
     parsed.timestamp_unix = ReadU64Le(&header[20]);
 
+    // The interop spec fixes this format's version at 1; a future version
+    // may change the header layout, so an unrecognized version must be
+    // rejected rather than blindly parsed with v1 field offsets.
+    if (parsed.version != 1) {
+        if (error_message) *error_message = "Unsupported frame file version " +
+            std::to_string(parsed.version) + " (only version 1 is supported): " + input_path;
+        return false;
+    }
+
+    // Bound frame_length against the ACTUAL remaining bytes in the file
+    // before allocating -- this header field comes from a file that may
+    // have been produced by another team's implementation, so a corrupt or
+    // malicious header must not be able to request an arbitrarily large
+    // allocation (e.g. frame_length = 0xFFFFFFFF from a truncated/garbled
+    // file). This intentionally does NOT hardcode frame_length to exactly
+    // 6000: the field is stored as data (not implied), so any length that
+    // genuinely matches the file's payload is accepted.
+    const std::streampos payload_start = in.tellg();
+    in.seekg(0, std::ios::end);
+    const std::streamoff available = in.tellg() - payload_start;
+    in.seekg(payload_start);
+    if (available < static_cast<std::streamoff>(parsed.frame_length)) {
+        if (error_message) *error_message = "Payload shorter than header's frame_length (" +
+            std::to_string(parsed.frame_length) + " symbols): " + input_path;
+        return false;
+    }
+
     std::vector<uint8_t> payload(parsed.frame_length);
     if (parsed.frame_length > 0) {
         in.read(reinterpret_cast<char*>(payload.data()),

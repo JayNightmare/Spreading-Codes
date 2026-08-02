@@ -55,6 +55,10 @@ bool TestRejectsBadMagic() {
     {
         std::string junk(64 + 10, 'X');
         FILE* f = std::fopen(path.c_str(), "wb");
+        if (!f) {
+            std::cerr << "FAIL: could not create fixture file " << path << "\n";
+            return false;
+        }
         std::fwrite(junk.data(), 1, junk.size(), f);
         std::fclose(f);
     }
