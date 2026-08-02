@@ -83,6 +83,9 @@ target_include_directories(lunanet_gateway4 PUBLIC
 set(GATEWAY5_SOURCES
     codes/gateway5/frame_synchronizer.cpp
     codes/gateway5/sync_detector.cpp
+    codes/gateway5/despreader.cpp
+    codes/gateway1/spreading_config.cpp
+    codes/gateway1/gold_code_generator.cpp
     codes/gateway5/symbol_extractor.cpp
     codes/gateway5/bch_soft_decoder.cpp
     codes/gateway5/deinterleaver.cpp
@@ -93,6 +96,9 @@ set(GATEWAY5_SOURCES
 set(GATEWAY5_HEADERS
     codes/gateway5/frame_synchronizer.h
     codes/gateway5/sync_detector.h
+    codes/gateway5/despreader.h
+    codes/gateway1/spreading_config.h
+    codes/gateway1/gold_code_generator.h
     codes/gateway5/symbol_extractor.h
     codes/gateway5/bch_soft_decoder.h
     codes/gateway5/deinterleaver.h
@@ -100,11 +106,46 @@ set(GATEWAY5_HEADERS
     codes/gateway5/crc_validator.h
 )
 
+add_executable(gateway3_frame_exporter_test
+    codes/gateway3/frame_exporter_test.cpp
+)
+
+target_link_libraries(gateway3_frame_exporter_test PRIVATE
+    lunanet_gateway3
+)
+
+set_target_properties(gateway3_frame_exporter_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway3_frame_exporter_test
+    COMMAND gateway3_frame_exporter_test
+)
+
+add_executable(gateway4_signal_exporter_test
+    codes/gateway4/signal_exporter_test.cpp
+)
+
+target_link_libraries(gateway4_signal_exporter_test PRIVATE
+    lunanet_gateway4
+)
+
+set_target_properties(gateway4_signal_exporter_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway4_signal_exporter_test
+    COMMAND gateway4_signal_exporter_test
+)
+
 add_library(lunanet_gateway5 STATIC ${GATEWAY5_SOURCES} ${GATEWAY5_HEADERS})
 
 target_include_directories(lunanet_gateway5 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/codes
     ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway5
+    ${CMAKE_CURRENT_SOURCE_DIR}/codes/gateway1
 )
 
 target_link_libraries(lunanet_gateway5 PUBLIC
@@ -144,6 +185,23 @@ set_target_properties(gateway5_sync_detector_test PROPERTIES
 add_test(
     NAME gateway5_sync_detector_test
     COMMAND gateway5_sync_detector_test
+)
+
+add_executable(gateway5_despreader_test
+    codes/gateway5/despreader_test.cpp
+)
+
+target_link_libraries(gateway5_despreader_test PRIVATE
+    lunanet_gateway5
+)
+
+set_target_properties(gateway5_despreader_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+add_test(
+    NAME gateway5_despreader_test
+    COMMAND gateway5_despreader_test
 )
 
 add_executable(gateway5_symbol_extractor_test
