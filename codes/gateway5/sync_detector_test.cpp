@@ -164,7 +164,7 @@ bool TestMonteCarloDetectionRateAboveZeroDb() {
             v = bit + gaussian(rng) * noise_stddev;
         }
 
-        std::uniform_int_distribution<std::size_t> offset_dist(0, stream.size() - pattern_len - 1);
+        std::uniform_int_distribution<std::size_t> offset_dist(0, stream.size() - pattern_len);
         const std::size_t true_offset = offset_dist(rng);
         for (std::size_t i = 0; i < pattern_len; ++i) {
             stream[true_offset + i] = static_cast<double>(reference[i]) + gaussian(rng) * noise_stddev;
